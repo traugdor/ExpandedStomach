@@ -1,0 +1,14 @@
+{
+  "type": "code",
+  "modid": "expandedstomach",
+  "name": "ExpandedStomach",
+  "authors": [
+    "traugdor"
+  ],
+  "description": "Eat all you want. Finish that last bite...",
+  "version": "1.0.0",
+  "dependencies": {
+    "game": ""
+  },
+  "entrypoint": "ExpandedStomach.ModSystemExpandedStomach"
+}
