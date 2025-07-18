@@ -1,17 +1,22 @@
-﻿using System;
+﻿
+using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Vintagestory.API.Common;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
+using Vintagestory.API.Config;
+using Vintagestory.API.Server;
 
 namespace ExpandedStomach
 {
     public class EntityBehaviorStomach : EntityBehavior
     {
+
+        long serverListenerId;
+        long serverListenerSlowId;
         public int StomachSize
         {
             get => entity.WatchedAttributes.TryGetInt("stomachSize") ?? 500;
@@ -29,26 +34,39 @@ namespace ExpandedStomach
             set
             {
                 float tryFloat = float.TryParse(value.ToString(), out float result) ? result : 0;
-                result = GameMath.Clamp(tryFloat, 0, 1);
+                result = GameMath.Clamp(tryFloat, 0f, 1f);
                 entity.WatchedAttributes.SetFloat("fatMeter", result);
             }
         }
 
-        public int MaxSatiety
+        public float MaxSatiety
         {
-            get => entity.WatchedAttributes.TryGetInt("maxSatiety") ?? 1500;
+            get => entity.WatchedAttributes.TryGetFloat("maxSatiety") ?? 1500f;
             set
             {
-                int tryInt = int.TryParse(value.ToString(), out int result) ? result : 0;
-                entity.WatchedAttributes.SetInt("maxSatiety", tryInt);
+                float tryInt = float.TryParse(value.ToString(), out float result) ? result : 1500f;
+                entity.WatchedAttributes.SetFloat("maxSatiety", tryInt);
             }
         }
 
-        private bool _canSprint;
-        public bool CanSprint
+        public float CurrentSatiety
         {
-            get => _canSprint;
-            set => _canSprint = value;
+            get => entity.WatchedAttributes.TryGetFloat("currentSatiety") ?? 1500f;
+            set
+            {
+                float tryF = float.TryParse(value.ToString(), out float result) ? result : 1500f;
+                entity.WatchedAttributes.SetFloat("currentSatiety", tryF);
+            }
+        }
+
+        public float ExpandedStomachMeter
+        {
+            get => entity.WatchedAttributes.TryGetFloat("expandedStomachMeter") ?? 0f;
+            set
+            {
+                float tryF = float.TryParse(value.ToString(), out float result) ? result : 0f;
+                entity.WatchedAttributes.SetFloat("expandedStomachMeter", tryF);
+            }
         }
 
         private bool _needsSprintToMove;
@@ -75,7 +93,7 @@ namespace ExpandedStomach
         }
 
         float lastFullTime = -1;
-        const float eatingWindow = 10f;
+        
         public EntityBehaviorStomach(Entity entity) : base(entity)
         {
             if (!entity.WatchedAttributes.HasAttribute("stomachSize"))
@@ -86,38 +104,40 @@ namespace ExpandedStomach
             {
                 FatMeter = 0;
             }
+            if (!entity.WatchedAttributes.HasAttribute("expandedStomachMeter"))
+            {
+                ExpandedStomachMeter = 0;
+            }
+            var nutritionBehavior = entity.GetBehavior<EntityBehaviorHunger>();
+            if (nutritionBehavior != null)
+            {
+                MaxSatiety = nutritionBehavior.MaxSaturation;
+                CurrentSatiety = nutritionBehavior.Saturation;
+            }
+            else
+            {
+                if (!entity.WatchedAttributes.HasAttribute("maxSatiety"))
+                {
+                    //get the max satiety from the attributes
+                    MaxSatiety = entity.WatchedAttributes.TryGetFloat("maxSatiety") ?? 1500f;
+                }
+                if (!entity.WatchedAttributes.HasAttribute("currentSatiety"))
+                {
+                    //get the current satiety from the attributes
+                    CurrentSatiety = entity.WatchedAttributes.TryGetFloat("currentSatiety") ?? 1500f;
+                }
+            }
+            if (entity.World.Side == EnumAppSide.Server)
+            {
+                serverListenerId = entity.World.RegisterGameTickListener(ServerTick2min, 120000, 2000); //2 min
+                serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, 2880000, 2000); //48 min
+            }
         }
 
         public void OnRespawn()
         {
-            // halve stomach and body fat and recalculate movement penalties
+            // halve stomach size
             StomachSize = StomachSize / 2;
-            FatMeter = 0.5f * FatMeter;
-            CheckIfCanSprint();
-            CalculateMovementSpeedPenalty();
-            UpdateWalkSpeed();
-        }
-
-        private void CheckIfCanSprint()
-        {
-            // if fat is 50% you can no longer sprint
-            if(FatMeter >= 0.5f)
-            {
-                CanSprint = false;
-                NeedsSprintToMove = false;
-            }
-            // if fat is 95% you can no longer move. You need to sprint to move
-            else if(FatMeter >= 0.95f)
-            {
-                CanSprint = false;
-                NeedsSprintToMove = true;
-            }
-            // if fat is less than 50% you can sprint; Movement penalties will still apply
-            else
-            {
-                CanSprint = true;
-                NeedsSprintToMove = false;
-            }
         }
 
         private void CalculateMovementSpeedPenalty()
@@ -130,39 +150,88 @@ namespace ExpandedStomach
         {
             entity.Stats.Set("walkspeed", "fatPenalty", -MovementPenalty, true);
         }
+        
+        float strain = 0f;
 
-        public override void OnGameTick(float deltaTime)
+        public void ServerTickSUPERSlow(float deltaTime)
         {
-            if (!entity.Alive || entity is not EntityPlayer playerEntity) return;
-            if (playerEntity.Player?.WorldData?.CurrentGameMode is EnumGameMode.Creative or EnumGameMode.Spectator or EnumGameMode.Guest) return;
-
-            if(float.IsNaN(deltaTime) || deltaTime < 0)
+            //time to check if player is fat
+            if (strain >= 0.75f) //if player is spending a lot of time overeating
             {
-                deltaTime = 0f;
+                FatMeter += 0.1f; //caps at 1
+            } 
+            else
+            {
+                FatMeter -= 0.05f; //caps at 0
             }
+            FatMeter = Math.Clamp(strain, 0f, 1f);
 
-            //get player satiety
-            
-            
-
-            base.OnGameTick(deltaTime);
+            CalculateMovementSpeedPenalty();
+            UpdateWalkSpeed();
         }
 
-        public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown,
-                                                       float saturationLossDelay = 10f, float nutritionGainMultiplier = 1f)
+        float proximity = 0f;
+        float buildrate = 0.01f;
+        float decayrate = 0.005f;
+
+        public void ServerTick2min(float deltaTime) // used to calculate expanded stomach size and if fat should rise
+        {
+            proximity = Math.Clamp(ExpandedStomachMeter / StomachSize, 0f, 1f);
+            if(proximity >= 0.9f) // if 90% of stomach is full
+            {
+                strain += buildrate * (proximity - 0.9f) / 0.1f;
+            }
+            if(CurrentSatiety < MaxSatiety) // if player is not overeating, assume they're on a diet
+            {
+                proximity = 0.5f;
+                strain -= decayrate * (1f - proximity);
+            }
+            strain = Math.Clamp(strain, 0f, 1f); //clamp values so they have a chance to lose fat if they decide to stop overeating
+            if(ExpandedStomachMeter >= StomachSize * 0.9f) // if 90% of stomach is full
+            {
+                StomachSize += 50; //50 x 24 = 1200
+            }
+            if(ExpandedStomachMeter < 0.1f * StomachSize) // if 10% of stomach is empty
+            {
+                StomachSize -= 12; //12 x 24 = 288
+            }
+
+            var player = entity as EntityPlayer;
+            var serverPlayer = player?.Player as IServerPlayer;
+            serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                        "Your stomach size is now " + StomachSize.ToString() + " units.\n" + 
+                        "Your fat level is now " + (FatMeter * 100).ToString() + "%.",
+                        EnumChatType.Notification);
+        }
+
+        public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
+        {
+            //update last time player ate
+            lastFullTime = entity.World.ElapsedMilliseconds / 1000f;
+        }
+
+        public bool HandlePlayerEating(float saturation, float overflowsat, float cooldown)
         {
             float maxSatiety = 1500f;
+            float currentSatiety = 0f;
             var nutritionBehavior = entity.GetBehavior<EntityBehaviorHunger>();
             if (nutritionBehavior != null)
             {
                 maxSatiety = nutritionBehavior.MaxSaturation;
+                currentSatiety = nutritionBehavior.Saturation;
             }
-            float currentSatiety = entity.WatchedAttributes.GetFloat("saturation", 0f);
             //note the last time the player ate
             if (currentSatiety >= maxSatiety)
             {
                 lastFullTime = entity.World.ElapsedMilliseconds / 1000f;
             }
+            var player = entity as EntityPlayer;
+            var serverPlayer = player?.Player as IServerPlayer;
+            serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                        "Food received.\nCurrent satiety: " + currentSatiety + "/" + maxSatiety + "\nLast full: " + lastFullTime + "s\nFat Meter: " + FatMeter
+                        + "\nSaturation of incoming food: " + saturation + "\nStomach Size: " + StomachSize,
+                        EnumChatType.Notification);
+            return true;
         }
 
         public override string PropertyName() => "expandedStomach";

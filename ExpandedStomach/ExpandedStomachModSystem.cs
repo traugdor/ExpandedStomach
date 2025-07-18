@@ -14,23 +14,23 @@ public class ExpandedStomachModSystem : ModSystem
     // Useful for registering block/entity classes on both sides
     public override void Start(ICoreAPI api)
     {
-        if (api.Side == EnumAppSide.Server)
-        {
-            api.Event.OnEntitySpawn += (entity) =>
-            {
-                if (entity is EntityPlayer && entity.GetBehavior<EntityBehaviorStomach>() == null)
-                {
-                    entity.AddBehavior(new EntityBehaviorStomach(entity));
-                }
-            };
-        }
+        api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
         var harmony = new Harmony("expandedstomach");
         harmony.PatchAll();
+        
         Mod.Logger.Notification("Expanded Stomach loaded and patched!");
     }
 
     public override void StartServerSide(ICoreServerAPI api)
     {
+        api.Event.PlayerNowPlaying += (IServerPlayer player) =>
+        {
+            var entity = player.Entity;
+            if (entity != null && entity.GetBehavior<EntityBehaviorStomach>() == null)
+            {
+                entity.AddBehavior(new EntityBehaviorStomach(entity));
+            }
+        };
         Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("expandedstomach:hello"));
         api.Event.PlayerNowPlaying += OnPlayerNowPlaying;
     }
