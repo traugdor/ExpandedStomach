@@ -1,7 +1,10 @@
-﻿using HarmonyLib;
+﻿using ExpandedStomach;
+using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -10,7 +13,6 @@ using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 using Vintagestory.GameContent;
-using ExpandedStomach;
 
 namespace ExpandedStomach.HarmonyPatches
 {
@@ -245,106 +247,89 @@ namespace ExpandedStomach.HarmonyPatches
     }
     //----------------------------------------------------------------------------
 
-    
-    [HarmonyPatch(typeof(EntityBehaviorHunger), "ReduceSaturation")]
+
+    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "ReduceSaturation")] // Change to actual method name if different
+    [HarmonyPriority(Priority.Last)]
     public static class Patch_EntityBehaviorHunger_ReduceSaturation
     {
-        public static bool Prefix(EntityBehaviorHunger __instance, float satLossMultiplier)
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
-            bool isondelay = false;
+            var codes = new List<CodeInstruction>(instructions);
 
-            Traverse t = Traverse.Create(__instance);
+            // Step 1: Find `if (prevSaturation > 0)` pattern
+            int originalIfStartIndex = -1;
+            int bleInstructionIndex = -1;
 
-            // Get the values
-            float hungerCounter = t.Field("hungerCounter").GetValue<float>();
-            int sprintCounter = t.Field("sprintCounter").GetValue<int>();
-
-            satLossMultiplier *= GlobalConstants.HungerSpeedModifier;
-            t.Field("satLossMultiplier").SetValue(satLossMultiplier);
-
-            if (__instance.SaturationLossDelayFruit > 0)
+            for (int i = 0; i < codes.Count - 2; i++)
             {
-                __instance.SaturationLossDelayFruit -= 10 * satLossMultiplier;
-                isondelay = true;
-            }
-            else
-            {
-                __instance.FruitLevel = Math.Max(0, __instance.FruitLevel - Math.Max(0.5f, 0.001f * __instance.FruitLevel) * satLossMultiplier * 0.25f);
+                if ((codes[i].opcode == OpCodes.Ldloc_1) &&
+                    codes[i + 1].opcode == OpCodes.Ldc_R4 && (float)codes[i + 1].operand == 0f &&
+                    (codes[i + 2].opcode == OpCodes.Ble_Un_S))
+                {
+                    originalIfStartIndex = i;
+                    bleInstructionIndex = i + 2;
+                    break;
+                }
             }
 
-            if (__instance.SaturationLossDelayVegetable > 0)
+            if (originalIfStartIndex == -1)
             {
-                __instance.SaturationLossDelayVegetable -= 10 * satLossMultiplier;
-                isondelay = true;
-            }
-            else
-            {
-                __instance.VegetableLevel = Math.Max(0, __instance.VegetableLevel - Math.Max(0.5f, 0.001f * __instance.VegetableLevel) * satLossMultiplier * 0.25f);
+                ExpandedStomachModSystem.Logger.Warning("ExpandedStomach: Could not find original saturation check. Patch skipped.");
+                return codes.AsEnumerable();
             }
 
-            if (__instance.SaturationLossDelayProtein > 0)
+            // Define label to jump to after our logic (i.e. skip original code)
+            Label skipOriginalIfBlock = il.DefineLabel();
+
+            // Assign that label to the instruction *after* the original if block's branch
+            int insertionPoint = originalIfStartIndex;
+
+            var targetlabel = (Label)codes[bleInstructionIndex].operand;
+
+            // Insert our call to CustomStomachLogic and conditional branch
+            var injected = new List<CodeInstruction>
             {
-                __instance.SaturationLossDelayProtein -= 10 * satLossMultiplier;
-                isondelay = true;
-            }
-            else
+                new CodeInstruction(OpCodes.Ldarg_0), // __instance
+                new CodeInstruction(OpCodes.Ldarg_1), // satLossMultiplier
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(CustomStomachLogic))),
+                new CodeInstruction(OpCodes.Brtrue_S, targetlabel) // If true, skip original hunger logic
+            };
+
+            codes.InsertRange(insertionPoint, injected);
+
+            foreach (var instr in codes.AsEnumerable())
             {
-                __instance.ProteinLevel = Math.Max(0, __instance.ProteinLevel - Math.Max(0.5f, 0.001f * __instance.ProteinLevel) * satLossMultiplier * 0.25f);
+                ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
             }
 
-            if (__instance.SaturationLossDelayGrain > 0)
-            {
-                __instance.SaturationLossDelayGrain -= 10 * satLossMultiplier;
-                isondelay = true;
-            }
-            else
-            {
-                __instance.GrainLevel = Math.Max(0, __instance.GrainLevel - Math.Max(0.5f, 0.001f * __instance.GrainLevel) * satLossMultiplier * 0.25f);
+            return codes.AsEnumerable();
+        }
+
+        // This runs before the original hunger depletion logic
+        public static bool CustomStomachLogic(EntityBehaviorHunger __instance, float satLossMultiplier)
+        {
+            var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            if (stomach == null) { 
+                return false; 
             }
 
-            if (__instance.SaturationLossDelayDairy > 0)
-            {
-                __instance.SaturationLossDelayDairy -= 10 * satLossMultiplier;
-                isondelay = true;
-            }
-            else
-            {
-                __instance.DairyLevel = Math.Max(0, __instance.DairyLevel - Math.Max(0.5f, 0.001f * __instance.DairyLevel) * satLossMultiplier * 0.25f / 2);
-            }
-
-            __instance.UpdateNutrientHealthBoost();
-
-            if (isondelay)
-            {
-                hungerCounter -= 10;
-                t.Field("hungerCounter").SetValue(hungerCounter);
-                return false; //return early to avoid draining hunger; deny original method
-            }
-
-            float prevSaturation = __instance.Saturation;
-            ITreeAttribute stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
-            float maxStomachSat = stomach.GetInt("stomachSize");
-            float satLoss = satLossMultiplier * 10;
-
-            if (prevStomachSat > 0)
+            if (prevStomachSat <= 0)
             {
-                satLoss = satLoss * (1 + (prevStomachSat / 11000f)); // caps at 1.5x and lowers as stomach empties
-                prevStomachSat = Math.Max(0, prevStomachSat - satLoss);
-                stomach.SetFloat("expandedStomachMeter", prevStomachSat);
-                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                sprintCounter = 0;
-                t.Field("sprintCounter").SetValue(sprintCounter);
-            }
-            else if (prevSaturation > 0)
-            {
-                __instance.Saturation = Math.Max(0, prevSaturation - satLoss);
-                sprintCounter = 0;
-                t.Field("sprintCounter").SetValue(sprintCounter);
+                return false;
             }
 
+            float satLoss = satLossMultiplier * 10f;
+            satLoss *= (1 + (prevStomachSat / 11000f));
+            prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
 
-            return false; //deny original method
+            stomach.SetFloat("expandedStomachMeter", prevStomachSat);
+            __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+            var sprintCounterField = typeof(EntityBehaviorHunger).GetField("sprintCounter", BindingFlags.Instance | BindingFlags.NonPublic);
+            sprintCounterField?.SetValue(__instance, 0);
+
+            return true;
         }
     }
 
