@@ -144,7 +144,7 @@ namespace ExpandedStomach
         {
             base.OnEntityDeath(damageSourceForDeath);
             // halve stomach size
-            StomachSize = StomachSize / 2;
+            //StomachSize = StomachSize / 2; //remove until config file is implemented
             ExpandedStomachMeter = 0;
         }
 
