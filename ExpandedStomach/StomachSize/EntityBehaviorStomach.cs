@@ -143,8 +143,11 @@ namespace ExpandedStomach
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
             base.OnEntityDeath(damageSourceForDeath);
-            // halve stomach size
-            //StomachSize = StomachSize / 2; //remove until config file is implemented
+            // halve stomach size if enabled
+            if (entity.Api.World.Config.GetBool("ExpandedStomach.hardcoreDeath") == true)
+            {
+                StomachSize /= 2;
+            }
             ExpandedStomachMeter = 0;
         }
 
