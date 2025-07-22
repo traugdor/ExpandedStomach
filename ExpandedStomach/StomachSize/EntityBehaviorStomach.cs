@@ -1,12 +1,12 @@
-﻿
-using System;
-using System.Collections.Generic;
+﻿using System;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Client;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Util;
 using Vintagestory.GameContent;
+using Vintagestory.ServerMods.NoObf;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
@@ -18,39 +18,44 @@ namespace ExpandedStomach
 
         long serverListenerId;
         long serverListenerSlowId;
-        public int StomachSize
+
+        private static readonly Random rand = new Random();
+
+        public ITreeAttribute StomachAttributes
         {
-            get => entity.WatchedAttributes.TryGetInt("stomachSize") ?? 500;
+            get => entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             set
             {
-                int tryInt = int.TryParse(value.ToString(), out int result) ? result : 0;
-                result = GameMath.Clamp(tryInt, 500, 5500);
-                entity.WatchedAttributes.SetInt("stomachSize", result);
-                entity.WatchedAttributes.MarkPathDirty("stomachSize");
+                entity.WatchedAttributes.SetAttribute("expandedStomach", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
+        public int StomachSize
+        {
+            get => StomachAttributes.GetInt("stomachSize", 500);
+            set
+            {
+                int result = GameMath.Clamp(value, 500, 5500);
+                StomachAttributes.SetInt("stomachSize", result);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
 
         public float FatMeter
         {
-            get => entity.WatchedAttributes.TryGetFloat("fatMeter") ?? 0;
+            get => StomachAttributes.GetFloat("fatMeter", 0f);
             set
             {
-                float tryFloat = float.TryParse(value.ToString(), out float result) ? result : 0;
-                result = GameMath.Clamp(tryFloat, 0f, 1f);
-                entity.WatchedAttributes.SetFloat("fatMeter", result);
-                entity.WatchedAttributes.MarkPathDirty("fatMeter");
+                float result = GameMath.Clamp(value, 0f, 1f);
+                StomachAttributes.SetFloat("fatMeter", result);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
 
-        public float MaxSatiety
+        public float MaxSatiety //just an accessor for base game
         {
-            get => entity.WatchedAttributes.TryGetFloat("maxSatiety") ?? 1500f;
-            set
-            {
-                float tryInt = float.TryParse(value.ToString(), out float result) ? result : 1500f;
-                entity.WatchedAttributes.SetFloat("maxSatiety", tryInt);
-                entity.WatchedAttributes.MarkPathDirty("maxSatiety");
-            }
+            get => entity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("maxsaturation");
         }
 
         public float CurrentSatiety //just an accessor for base game
@@ -60,20 +65,12 @@ namespace ExpandedStomach
 
         public float ExpandedStomachMeter
         {
-            get => entity.WatchedAttributes.TryGetFloat("expandedStomachMeter") ?? 0f;
+            get => StomachAttributes.GetFloat("expandedStomachMeter", 0);
             set
             {
-                float tryF = float.TryParse(value.ToString(), out float result) ? result : 0f;
-                entity.WatchedAttributes.SetFloat("expandedStomachMeter", tryF);
-                entity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
+                StomachAttributes.SetFloat("expandedStomachMeter", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
-        }
-
-        private bool _needsSprintToMove;
-        public bool NeedsSprintToMove
-        {
-            get => _needsSprintToMove;
-            set => _needsSprintToMove = value;
         }
 
         private float _movementPenalty;
@@ -94,80 +91,61 @@ namespace ExpandedStomach
 
         public float strain
         {
-            get => entity.WatchedAttributes.TryGetFloat("strain") ?? 0f;
+            get => StomachAttributes.GetFloat("strain", 0);
             set {
-                entity.WatchedAttributes.SetFloat("strain", value);
-                entity.WatchedAttributes.MarkPathDirty("strain");
+                StomachAttributes.SetFloat("strain", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
 
         public float laststrain
         {
-            get => entity.WatchedAttributes.TryGetFloat("laststrain") ?? 0f;
+            get => StomachAttributes.GetFloat("laststrain", 0);
             set
             {
-                entity.WatchedAttributes.SetFloat("laststrain", value);
-                entity.WatchedAttributes.MarkPathDirty("laststrain");
+                StomachAttributes.SetFloat("laststrain", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
 
         public float averagestrain
         {
-            get => entity.WatchedAttributes.TryGetFloat("averagestrain") ?? 0f;
+            get => StomachAttributes.GetFloat("averagestrain", 0);
             set
             {
-                entity.WatchedAttributes.SetFloat("averagestrain", value);
-                entity.WatchedAttributes.MarkPathDirty("averagestrain");
+                StomachAttributes.SetFloat("averagestrain", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
 
-        public EntityBehaviorStomach(Entity entity) : base(entity)
+        int days
         {
-            if (!entity.WatchedAttributes.HasAttribute("stomachSize"))
+            get => entity.WatchedAttributes.TryGetInt("days") ?? 0;
+            set
             {
-                StomachSize = 500;
-            }
-            if (!entity.WatchedAttributes.HasAttribute("fatMeter"))
-            {
-                FatMeter = 0;
-            }
-            if (!entity.WatchedAttributes.HasAttribute("expandedStomachMeter"))
-            {
-                ExpandedStomachMeter = 0;
-            }
-            var nutritionBehavior = entity.GetBehavior<EntityBehaviorHunger>();
-            if (nutritionBehavior != null)
-            {
-                MaxSatiety = nutritionBehavior.MaxSaturation;
-            }
-            else
-            {
-                if (!entity.WatchedAttributes.HasAttribute("maxSatiety"))
-                {
-                    //get the max satiety from the attributes
-                    MaxSatiety = entity.WatchedAttributes.TryGetFloat("maxSatiety") ?? 1500f;
-                }
-            }
-            if (entity.World.Side == EnumAppSide.Server)
-            {
-                serverListenerId = entity.World.RegisterGameTickListener(ServerTick2min, 120000, 2000); //2 min
-                serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, 60000, 2000); //1 min
-            }
-            try// just in case
-            {
-                int tempdays = entity.WatchedAttributes.TryGetInt("days") ?? 0;
-            }
-            catch (Exception e)
-            {
-                entity.WatchedAttributes.SetInt("days", 0);
+                entity.WatchedAttributes.SetInt("days", value);
                 entity.WatchedAttributes.MarkPathDirty("days");
             }
         }
 
-        public void OnRespawn()
+        int dayCountOffset
         {
+            get => entity.WatchedAttributes.TryGetInt("dayCountOffset") ?? 0;
+            set
+            {
+                entity.WatchedAttributes.SetInt("dayCountOffset", value);
+                entity.WatchedAttributes.MarkPathDirty("dayCountOffset");
+            }
+        }
+
+        bool ExpandedStomachWasActive = false;
+
+        public override void OnEntityDeath(DamageSource damageSourceForDeath)
+        {
+            base.OnEntityDeath(damageSourceForDeath);
             // halve stomach size
             StomachSize = StomachSize / 2;
+            ExpandedStomachMeter = 0;
         }
 
         private void CalculateMovementSpeedPenalty()
@@ -181,17 +159,34 @@ namespace ExpandedStomach
             entity.Stats.Set("walkspeed", "fatPenalty", -MovementPenalty, true);
         }
 
-        int days
+        public EntityBehaviorStomach(Entity entity) : base(entity)
         {
-            get => entity.WatchedAttributes.TryGetInt("days") ?? 0;
-            set
+            if (entity.World.Side == EnumAppSide.Server)
             {
-                entity.WatchedAttributes.SetInt("days", value);
-                entity.WatchedAttributes.MarkPathDirty("days");
+                serverListenerId = entity.World.RegisterGameTickListener(ServerTick2min, 120000, 2000); //2 min
+                serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, 60000, 2000); //1 min
+            }
+
+            //create tree attribute and set all values if it doesn't exist
+            if (!entity.WatchedAttributes.HasAttribute("expandedStomach"))
+            {
+                entity.WatchedAttributes.SetAttribute("expandedStomach", new TreeAttribute());
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                //set default values
+                StomachSize = 1;
+                FatMeter = 0;
+                ExpandedStomachMeter = 0;
+                strain = 0;
+                laststrain = 0;
+                averagestrain = 0;
+                CalculateMovementSpeedPenalty();
+            }
+            if (!entity.WatchedAttributes.HasAttribute("dayCountOffset"))
+            {
+                dayCountOffset = (int)Math.Floor(entity.World.Calendar.TotalDays);
+                days = dayCountOffset;
             }
         }
-
-        bool ExpandedStomachWasActive = false;
 
         public void ServerTickSUPERSlow(float deltaTime)
         {
@@ -200,11 +195,10 @@ namespace ExpandedStomach
             int today = (int)Math.Floor(entity.World.Calendar.TotalDays);
             if(today > days) // if a day has passed
             {
-                averagestrain = ((float)days * averagestrain + strain) / ((float)today);
+                averagestrain = (((float)(days-dayCountOffset) * averagestrain) + strain) / (float)(today-dayCountOffset);
                 days = today;
                 CalculateFatandStomachSize();
                 CalculateMovementSpeedPenalty();
-                UpdateWalkSpeed();
 
                 laststrain = strain; //reset strain amounts
                 ExpandedStomachWasActive = false;
@@ -215,7 +209,7 @@ namespace ExpandedStomach
         {
             // calculate both gains and losses.
             //calculate fat level, stomach size, etc
-            Random rand = new Random();
+            
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
             // determine if gain or loss
@@ -224,16 +218,16 @@ namespace ExpandedStomach
             // stable = strain same as previous day it neither went up nor down, or it's lower but expanded stomach was active
             // dieting = strain lower than previous day
 
-            bool overeating = strain > laststrain;
+            bool overeating = strain > averagestrain;
             bool stable1 = strain == laststrain;
             bool stable2 = strain < laststrain && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
 
             if(overeating)
             {
-                StomachSize += 150;
+                StomachSize += 50;
                 //roll to see if fat meter goes up
-                if(rand.NextDouble() < 0.5) // 50% chance
+                if(rand.NextDouble() < strain) // 50% chance
                 {
                     FatMeter += 0.01f  * (1 + averagestrain); //increase slowly but more if strain values are high
                 }
@@ -241,12 +235,12 @@ namespace ExpandedStomach
             else if (stable1 || stable2)
             {
                 //not pushing limits, decrease stomach amount
-                StomachSize -= 75;
+                StomachSize -= 25;
             }
             else if (dieting)
             {
                 //actively not eating
-                StomachSize -= 150;
+                StomachSize -= 50;
                 if (rand.NextDouble() < 0.5) // 50% chance
                 {
                     FatMeter -= 0.01f; // decrease 2x slower
@@ -279,12 +273,28 @@ namespace ExpandedStomach
                 // lower fat level?
             }
             strain = Math.Clamp(strain, 0f, 1f);
+            var player = entity as EntityPlayer;
+            var serverPlayer = player?.Player as IServerPlayer;
+            serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
+                EnumChatType.Notification);
         }
 
         public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
         {
             //update last time player ate
             ; //do nothing... we might even remove this entire function later
+        }
+
+        public override void OnEntityDespawn(EntityDespawnData despawn)
+        {
+            base.OnEntityDespawn(despawn);
+            
+            if (serverListenerId != 0)
+            {
+                entity.World.UnregisterGameTickListener(serverListenerId);
+                entity.World.UnregisterGameTickListener(serverListenerSlowId);
+            }
         }
 
         public override string PropertyName() => "expandedStomach";

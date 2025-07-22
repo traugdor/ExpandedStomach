@@ -66,12 +66,14 @@ namespace ExpandedStomach.HarmonyPatches
             mealremSat = servingsLeft * mealbaseSat;
 
             // get expandable stomach properties
-            int stomachsize = byEntity.WatchedAttributes.GetInt("stomachSize");
-            float stomachsat = byEntity.WatchedAttributes.GetFloat("expandedStomachMeter");
+            ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            int stomachsize = stomach.GetInt("stomachSize");
+            float stomachsat = stomach.GetFloat("expandedStomachMeter");
 
             //check last time we ate because this fires twice for some reason I don't understand why
             float timeLastEat = byEntity.WatchedAttributes.GetFloat("timeLastEat");
-            if (api.World.ElapsedMilliseconds - timeLastEat < 15000 && api.World.ElapsedMilliseconds - timeLastEat > 1500) //if it hasn't been 15 seconds since we last ate
+            float eatWindow = api.World.ElapsedMilliseconds - timeLastEat;
+            if (eatWindow < 15000 && eatWindow > 1000) //if it's between 1s and 15s after last eat
             {
                 timeLastEat = api.World.ElapsedMilliseconds;
                 byEntity.WatchedAttributes.SetFloat("timeLastEat", timeLastEat);
@@ -80,18 +82,20 @@ namespace ExpandedStomach.HarmonyPatches
                 if (stomachsize - stomachsat >= mealremSat)
                 {
                     //we ate it all :)
+                    Helpers.GetNutrientsFromMeal(multiProps, servingsLeft, byEntity);
                     servingsLeft = 0;
                     stomachsat += mealremSat;
-                    byEntity.WatchedAttributes.SetFloat("expandedStomachMeter", stomachsat);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
+                    stomach.SetFloat("expandedStomachMeter", stomachsat);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
                 else
                 {
                     //we were a wimp and couldn't eat it all
                     servingsLeft -= (stomachsize - stomachsat) / mealbaseSat;
+                    Helpers.GetNutrientsFromMeal(multiProps, servingsLeft, byEntity);
                     stomachsat = stomachsize;
-                    byEntity.WatchedAttributes.SetFloat("expandedStomachMeter", stomachsat);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
+                    stomach.SetFloat("expandedStomachMeter", stomachsat);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
             }
             else
@@ -154,49 +158,10 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
     //----------------------------------------------------------------------------
-
-    [HarmonyPatch]
-    public static class ShutYourPieHole
-    {
-        static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(BlockPie), "OnBlockInteractStart");
-        }
-
-        static bool Prefix(
-            BlockPie __instance,
-            IWorldAccessor world,
-            IPlayer byPlayer,
-            BlockSelection blockSel)
-        {
-            if (byPlayer?.Entity == null || world.Side != EnumAppSide.Server) return true;
-
-            var behavior = byPlayer.Entity.GetBehavior<EntityBehaviorStomach>();
-            float currentSat = behavior.CurrentSatiety;
-            float maxSat = 1500f;
-
-            var hunger = byPlayer.Entity.GetBehavior<EntityBehaviorHunger>();
-            if (hunger != null) maxSat = hunger.MaxSaturation;
-            if (behavior != null) maxSat = behavior.MaxSatiety;
-
-            if (currentSat >= maxSat + 500f)
-            {
-                if (byPlayer is IServerPlayer serverPlayer)
-                {
-                    serverPlayer.SendMessage(
-                        GlobalConstants.GeneralChatGroup,
-                        "I couldn't possibly eat another bite.",
-                        EnumChatType.Notification
-                    );
-                }
-                return false; // Cancel pie interaction
-            }
-            return false; // Allow default pie eating
-        }
-    }
+    
     //----------------------------------------------------------------------------
 
-    // Patch for regular items (meat, bread, etc.)
+    // Patch for regular items (meat, bread, berries, etc.)
     [HarmonyPatch]
     public static class Patch_CollectibleObject_tryEatStop
     {
@@ -216,6 +181,12 @@ namespace ExpandedStomach.HarmonyPatches
 
             if (byEntity.World is IServerWorldAccessor && nutriProps != null && secondsUsed >= 0.95f)
             {
+                //get watched attribute and check if timeLastEat is defined
+                if (!byEntity.WatchedAttributes.HasAttribute("timeLastEat"))
+                {
+                    byEntity.WatchedAttributes.SetFloat("timeLastEat", 0f);
+                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
+                }
                 TransitionState state = __instance.UpdateAndGetTransitionState(api.World, slot, EnumTransitionType.Perish);
                 float spoilState = state != null ? state.TransitionLevel : 0;
 
@@ -224,78 +195,50 @@ namespace ExpandedStomach.HarmonyPatches
 
                 byEntity.ReceiveSaturation(nutriProps.Satiety * satLossMul, nutriProps.FoodCategory);
 
-                // get expandable stomach properties
-                int stomachsize = byEntity.WatchedAttributes.GetInt("stomachSize");
-                float stomachsat = byEntity.WatchedAttributes.GetFloat("expandedStomachMeter");
+                // fill stomach
+                //eat as much as we can and toss the rest
+                float mealSat = nutriProps.Satiety * satLossMul;
+                //calculate stomach size left
 
-                //check last time we ate because this fires twice for some reason I don't understand why
-                float timeLastEat = byEntity.WatchedAttributes.GetFloat("timeLastEat");
-                if (api.World.ElapsedMilliseconds - timeLastEat > 1500)
+                Helpers.GetNutrientsFromFoodType(nutriProps.FoodCategory, mealSat, byEntity);
+
+                IPlayer player = null;
+                if (byEntity is EntityPlayer) player = byEntity.World.PlayerByUid(((EntityPlayer)byEntity).PlayerUID);
+
+                slot.TakeOut(1);
+
+                if (nutriProps.EatenStack != null)
                 {
-                    timeLastEat = api.World.ElapsedMilliseconds;
-                    byEntity.WatchedAttributes.SetFloat("timeLastEat", timeLastEat);
-                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
-                    // fill stomach
-                    //eat as much as we can and toss the rest
-                    float mealSat = nutriProps.Satiety * satLossMul;
-                    //calculate stomach size left
-                    if(stomachsize - stomachsat < mealSat)
+                    if (slot.Empty)
                     {
-                        stomachsat = stomachsize;
-                        byEntity.WatchedAttributes.SetFloat("expandedStomachMeter", stomachsat);
-                        byEntity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
+                        slot.Itemstack = nutriProps.EatenStack.ResolvedItemstack.Clone();
                     }
                     else
                     {
-                        stomachsat += mealSat;
-                        byEntity.WatchedAttributes.SetFloat("expandedStomachMeter", stomachsat);
-                        byEntity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
-                    }
-
-                    IPlayer player = null;
-                    if (byEntity is EntityPlayer) player = byEntity.World.PlayerByUid(((EntityPlayer)byEntity).PlayerUID);
-
-                    slot.TakeOut(1);
-
-                    if (nutriProps.EatenStack != null)
-                    {
-                        if (slot.Empty)
+                        if (player == null || !player.InventoryManager.TryGiveItemstack(nutriProps.EatenStack.ResolvedItemstack.Clone(), true))
                         {
-                            slot.Itemstack = nutriProps.EatenStack.ResolvedItemstack.Clone();
-                        }
-                        else
-                        {
-                            if (player == null || !player.InventoryManager.TryGiveItemstack(nutriProps.EatenStack.ResolvedItemstack.Clone(), true))
-                            {
-                                byEntity.World.SpawnItemEntity(nutriProps.EatenStack.ResolvedItemstack.Clone(), byEntity.SidedPos.XYZ);
-                            }
+                            byEntity.World.SpawnItemEntity(nutriProps.EatenStack.ResolvedItemstack.Clone(), byEntity.SidedPos.XYZ);
                         }
                     }
-
-                    float healthChange = nutriProps.Health * healthLossMul;
-
-                    float intox = byEntity.WatchedAttributes.GetFloat("intoxication");
-                    byEntity.WatchedAttributes.SetFloat("intoxication", Math.Min(1.1f, intox + nutriProps.Intoxication));
-
-                    if (healthChange != 0)
-                    {
-                        byEntity.ReceiveDamage(new DamageSource()
-                        {
-                            Source = EnumDamageSource.Internal,
-                            Type = healthChange > 0 ? EnumDamageType.Heal : EnumDamageType.Poison
-                        }, Math.Abs(healthChange));
-                    }
-
-                    slot.MarkDirty();
-                    player.InventoryManager.BroadcastHotbarSlot();
-                    return false; //deny default behavior
                 }
-                else
+
+                float healthChange = nutriProps.Health * healthLossMul;
+
+                float intox = byEntity.WatchedAttributes.GetFloat("intoxication");
+                byEntity.WatchedAttributes.SetFloat("intoxication", Math.Min(1.1f, intox + nutriProps.Intoxication));
+
+                if (healthChange != 0)
                 {
-                    timeLastEat = api.World.ElapsedMilliseconds;
-                    byEntity.WatchedAttributes.SetFloat("timeLastEat", timeLastEat);
-                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
+                    byEntity.ReceiveDamage(new DamageSource()
+                    {
+                        Source = EnumDamageSource.Internal,
+                        Type = healthChange > 0 ? EnumDamageType.Heal : EnumDamageType.Poison
+                    }, Math.Abs(healthChange));
                 }
+
+                slot.MarkDirty();
+                player.InventoryManager.BroadcastHotbarSlot();
+                return false; //deny default behavior
             }
             return false; //deny default behavior
         }
@@ -379,16 +322,17 @@ namespace ExpandedStomach.HarmonyPatches
             }
 
             float prevSaturation = __instance.Saturation;
-            float prevStomachSat = __instance.entity.WatchedAttributes.GetFloat("expandedStomachMeter");
-            float maxStomachSat = __instance.entity.WatchedAttributes.GetInt("stomachSize");
+            ITreeAttribute stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
+            float maxStomachSat = stomach.GetInt("stomachSize");
             float satLoss = satLossMultiplier * 10;
 
             if (prevStomachSat > 0)
             {
                 satLoss = satLoss * (1 + (prevStomachSat / 11000f)); // caps at 1.5x and lowers as stomach empties
                 prevStomachSat = Math.Max(0, prevStomachSat - satLoss);
-                __instance.entity.WatchedAttributes.SetFloat("expandedStomachMeter", prevStomachSat);
-                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomachMeter");
+                stomach.SetFloat("expandedStomachMeter", prevStomachSat);
+                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 sprintCounter = 0;
                 t.Field("sprintCounter").SetValue(sprintCounter);
             }
@@ -405,5 +349,80 @@ namespace ExpandedStomach.HarmonyPatches
     }
 
     //----------------------------------------------------------------------------
+    public static class Helpers
+    {
+        public static void GetNutrientsFromMeal(FoodNutritionProperties[] foodprops, float servingsConsumed, EntityAgent byEntity)
+        {
+            foreach (var foodprop in foodprops)
+            {
+                float saturation = foodprop.Satiety * servingsConsumed;
+                GetNutrientsFromFoodType(foodprop.FoodCategory, saturation, byEntity);
+            }
+        }
+
+        public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity)
+        {
+            // get expandable stomach properties
+            ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            int stomachsize = stomach.GetInt("stomachSize");
+            float stomachsat = stomach.GetFloat("expandedStomachMeter");
+
+            ITreeAttribute hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+            float currentsat = hunger.GetFloat("currentsaturation");
+            float maxsat = hunger.GetFloat("maxsaturation");
+            if (currentsat >= maxsat * 0.999f)
+            {
+                //only absorb 1/4 of nutrition if possible. sat/10 is calculation
+                // Math.Min(maxsat, nutlevel + sat/10
+                float fruitsat = hunger.GetFloat("fruitLevel");
+                float vegetablesat = hunger.GetFloat("vegetableLevel");
+                float proteinsat = hunger.GetFloat("proteinLevel");
+                float grainsat = hunger.GetFloat("grainLevel");
+                float dairysat = hunger.GetFloat("dairyLevel");
+
+                if (stomachsize - stomachsat < saturationConsumed)
+                {
+                    saturationConsumed = stomachsize - stomachsat;
+                    stomachsat = stomachsize;
+                    stomach.SetFloat("expandedStomachMeter", stomachsat);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                }
+                else
+                {
+                    stomachsat += saturationConsumed;
+                    stomach.SetFloat("expandedStomachMeter", stomachsat);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                }
+                switch (foodCat)
+                {
+                    case EnumFoodCategory.Fruit:
+                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.1f);
+                        hunger.SetFloat("fruitLevel", fruitsat);
+                        break;
+                    case EnumFoodCategory.Vegetable:
+                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.1f);
+                        hunger.SetFloat("vegetableLevel", vegetablesat);
+                        break;
+                    case EnumFoodCategory.Protein:
+                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.1f);
+                        hunger.SetFloat("proteinLevel", proteinsat);
+                        break;
+                    case EnumFoodCategory.Grain:
+                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.1f);
+                        hunger.SetFloat("grainLevel", grainsat);
+                        break;
+                    case EnumFoodCategory.Dairy:
+                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.1f);
+                        hunger.SetFloat("dairyLevel", dairysat);
+                        break;
+                    default:
+                        ; // do nothing. We couldn't update any saturation values because no category was specified
+                        break;
+                }
+                byEntity.WatchedAttributes.SetAttribute("hunger", hunger);
+                byEntity.WatchedAttributes.MarkPathDirty("hunger");
+            }
+        }
+    }
 
 }
