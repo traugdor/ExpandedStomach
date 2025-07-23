@@ -100,7 +100,7 @@ namespace ExpandedStomach.HarmonyPatches
             //if we didn't find it, abort with exception. We want the mod to crash and fail.
             if (originalCallIndex == -1 || ldNullIndex == -1)
             {
-                throw new Exception("Could not find call to RecieveSaturation. Aborting patch.");
+                throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
             }
 
             var foodCat = AccessTools.Field(typeof(FoodNutritionProperties), "FoodCategory"); //save foodCat -- Meow!
@@ -109,17 +109,13 @@ namespace ExpandedStomach.HarmonyPatches
             //now it's time to inject the call to GetNutrientsFromFoodType
             var toInject = new List<CodeInstruction>
             {
-                new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0)
-                new CodeInstruction(OpCodes.Ldfld, foodCat), //access FoodCategory
-                new CodeInstruction(OpCodes.Ldloc_2), //load satLossMul (local variable 2)
-                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3)
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "GetNutrientsFromFoodType")),
+                new CodeInstruction(OpCodes.Ldarg_0), //get this aka __instance
                 new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0) ... again
                 new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
                 new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
             };
 
-            codes.InsertRange(originalCallIndex + 1, toInject);
+            codes.InsertRange(originalCallIndex+3, toInject); //insert the code before receivesaturation
 
             return codes.AsEnumerable();
         } // <--- See Patch_EatingControl.cs>
@@ -224,34 +220,37 @@ namespace ExpandedStomach.HarmonyPatches
             }
         }
 
-        public static void EatFoodIntoExpandedStomach(FoodNutritionProperties foodprops, EntityAgent byEntity)
+        public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity)
         {
             float saturation = foodprops.Satiety;
             //calculate saturation we can absorb based on stomach size - capacity
-            int stomachsize = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").GetInt("stomachSize");
-            float stomachcapacity = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").GetInt("expandedStomachMeter");
+            ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            int stomachsize = stomach.GetInt("stomachSize");
+            float stomachcapacity = stomach.GetFloat("expandedStomachMeter");
             float saturationAvailable = (float)stomachsize - stomachcapacity;
 
-            var amthungry = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("currentsaturation");
+            var curSat = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("currentsaturation");
             var maxsat = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("maxsaturation");
             
-            if(amthungry >= maxsat * 0.999f)
+            if(curSat >= maxsat)
             {
                 //allow to eat into expanded stomach
                 if (saturationAvailable > saturation)
                 {
                     //we ate it all. add saturation to stomachcap and write it back
                     stomachcapacity += saturation;
-                    byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").SetFloat("expandedStomachMeter", stomachcapacity);
+                    stomach.SetFloat("expandedStomachMeter", stomachcapacity);
                     byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
                 else
                 {
                     //we didn't eat it all. stomachcap = stomachsize
-                    stomachcapacity += (float)stomachsize;
-                    byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").SetFloat("expandedStomachMeter", stomachcapacity);
+                    saturation = ((float)stomachsize - stomachcapacity);
+                    stomachcapacity = (float)stomachsize;
+                    stomach.SetFloat("expandedStomachMeter", stomachcapacity);
                     byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
+                GetNutrientsFromFoodType(foodprops.FoodCategory, saturation, byEntity);
             }
             
         }
