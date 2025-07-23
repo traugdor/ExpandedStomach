@@ -160,90 +160,62 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
     //----------------------------------------------------------------------------
-    
+
     //----------------------------------------------------------------------------
 
     // Patch for regular items (meat, bread, berries, etc.)
-    [HarmonyPatch]
+    [HarmonyPatch(typeof(CollectibleObject), "tryEatStop")]
+    [HarmonyPriority(100)]
     public static class Patch_CollectibleObject_tryEatStop
     {
-        static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
-        }
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il) {
+            var codes = new List<CodeInstruction>(instructions);
 
-        static bool Prefix(
-            CollectibleObject __instance,
-            float secondsUsed, 
-            ItemSlot slot, 
-            EntityAgent byEntity)
-        {
-            ICoreAPI api = Traverse.Create(__instance).Field("api").GetValue<ICoreAPI>();
-            FoodNutritionProperties nutriProps = __instance.GetNutritionProperties(byEntity.World, slot.Itemstack, byEntity);
+            //find where the call to RecieveSaturation is
+            int originalCallIndex = -1; //set to -1 for now. Check to see if modified later.
+            int ldNullIndex = -1; //set to -1 for now. Check to see if modified later.
+            //we store these values because we want to inject code between them.
 
-            if (byEntity.World is IServerWorldAccessor && nutriProps != null && secondsUsed >= 0.95f)
+            //let's find the call to RecieveSaturation
+            for (int i = 0; i < codes.Count - 2; i++) // subtract 2 because we need to check the next instruction as well.
             {
-                //get watched attribute and check if timeLastEat is defined
-                if (!byEntity.WatchedAttributes.HasAttribute("timeLastEat"))
+                if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
+                    codes[i].operand.ToString().Contains("ReceiveSaturation")) && //and it's a call to ReceiveSaturation
+                    codes[i + 1].opcode == OpCodes.Ldnull) // and the very next instruction is Ldnull
                 {
-                    byEntity.WatchedAttributes.SetFloat("timeLastEat", 0f);
-                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
+                    // then we found it!
+                    originalCallIndex = i;
+                    ldNullIndex = i + 1;
+                    break;
                 }
-                TransitionState state = __instance.UpdateAndGetTransitionState(api.World, slot, EnumTransitionType.Perish);
-                float spoilState = state != null ? state.TransitionLevel : 0;
-
-                float satLossMul = GlobalConstants.FoodSpoilageSatLossMul(spoilState, slot.Itemstack, byEntity);
-                float healthLossMul = GlobalConstants.FoodSpoilageHealthLossMul(spoilState, slot.Itemstack, byEntity);
-
-                byEntity.ReceiveSaturation(nutriProps.Satiety * satLossMul, nutriProps.FoodCategory);
-
-                // fill stomach
-                //eat as much as we can and toss the rest
-                float mealSat = nutriProps.Satiety * satLossMul;
-                //calculate stomach size left
-
-                Helpers.GetNutrientsFromFoodType(nutriProps.FoodCategory, mealSat, byEntity);
-
-                IPlayer player = null;
-                if (byEntity is EntityPlayer) player = byEntity.World.PlayerByUid(((EntityPlayer)byEntity).PlayerUID);
-
-                slot.TakeOut(1);
-
-                if (nutriProps.EatenStack != null)
-                {
-                    if (slot.Empty)
-                    {
-                        slot.Itemstack = nutriProps.EatenStack.ResolvedItemstack.Clone();
-                    }
-                    else
-                    {
-                        if (player == null || !player.InventoryManager.TryGiveItemstack(nutriProps.EatenStack.ResolvedItemstack.Clone(), true))
-                        {
-                            byEntity.World.SpawnItemEntity(nutriProps.EatenStack.ResolvedItemstack.Clone(), byEntity.SidedPos.XYZ);
-                        }
-                    }
-                }
-
-                float healthChange = nutriProps.Health * healthLossMul;
-
-                float intox = byEntity.WatchedAttributes.GetFloat("intoxication");
-                byEntity.WatchedAttributes.SetFloat("intoxication", Math.Min(1.1f, intox + nutriProps.Intoxication));
-
-                if (healthChange != 0)
-                {
-                    byEntity.ReceiveDamage(new DamageSource()
-                    {
-                        Source = EnumDamageSource.Internal,
-                        Type = healthChange > 0 ? EnumDamageType.Heal : EnumDamageType.Poison
-                    }, Math.Abs(healthChange));
-                }
-
-                slot.MarkDirty();
-                player.InventoryManager.BroadcastHotbarSlot();
-                return false; //deny default behavior
             }
-            return false; //deny default behavior
-        }
+            
+            //if we didn't find it, abort with exception. We want the mod to crash and fail.
+            if (originalCallIndex == -1 || ldNullIndex == -1)
+            {
+                throw new Exception("Could not find call to RecieveSaturation. Aborting patch.");
+            }
+
+            var foodCat = AccessTools.Field(typeof(FoodNutritionProperties), "FoodCategory"); //save foodCat -- Meow!
+            var satiety = AccessTools.Field(typeof(FoodNutritionProperties), "Satiety");
+
+            //now it's time to inject the call to GetNutrientsFromFoodType
+            var toInject = new List<CodeInstruction>
+            {
+                new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0)
+                new CodeInstruction(OpCodes.Ldfld, foodCat), //access FoodCategory
+                new CodeInstruction(OpCodes.Ldloc_2), //load satLossMul (local variable 2)
+                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3)
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "GetNutrientsFromFoodType")),
+                new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0) ... again
+                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
+            };
+
+            codes.InsertRange(originalCallIndex + 1, toInject);
+
+            return codes.AsEnumerable();
+        } // <--- See Patch_EatingControl.cs>
     }
     //----------------------------------------------------------------------------
 
@@ -275,7 +247,7 @@ namespace ExpandedStomach.HarmonyPatches
             if (originalIfStartIndex == -1)
             {
                 ExpandedStomachModSystem.Logger.Warning("ExpandedStomach: Could not find original saturation check. Patch skipped.");
-                return codes.AsEnumerable();
+                throw new Exception("ExpandedStomach: Could not find original saturation check.");
             }
 
             // Define label to jump to after our logic (i.e. skip original code)
@@ -343,6 +315,38 @@ namespace ExpandedStomach.HarmonyPatches
                 float saturation = foodprop.Satiety * servingsConsumed;
                 GetNutrientsFromFoodType(foodprop.FoodCategory, saturation, byEntity);
             }
+        }
+
+        public static void EatFoodIntoExpandedStomach(FoodNutritionProperties foodprops, EntityAgent byEntity)
+        {
+            float saturation = foodprops.Satiety;
+            //calculate saturation we can absorb based on stomach size - capacity
+            int stomachsize = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").GetInt("stomachSize");
+            float stomachcapacity = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").GetInt("expandedStomachMeter");
+            float saturationAvailable = (float)stomachsize - stomachcapacity;
+
+            var amthungry = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("currentsaturation");
+            var maxsat = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("maxsaturation");
+            
+            if(amthungry >= maxsat * 0.999f)
+            {
+                //allow to eat into expanded stomach
+                if (saturationAvailable > saturation)
+                {
+                    //we ate it all. add saturation to stomachcap and write it back
+                    stomachcapacity += saturation;
+                    byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").SetFloat("expandedStomachMeter", stomachcapacity);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                }
+                else
+                {
+                    //we didn't eat it all. stomachcap = stomachsize
+                    stomachcapacity += (float)stomachsize;
+                    byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach").SetFloat("expandedStomachMeter", stomachcapacity);
+                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                }
+            }
+            
         }
 
         public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity)
