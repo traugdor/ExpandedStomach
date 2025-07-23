@@ -80,7 +80,7 @@ namespace ExpandedStomach
             set
             {
                 float tryFloat = float.IsNaN(value) ? 0f : value;
-                tryFloat = GameMath.Clamp(tryFloat, 0f, 0.5f);
+                tryFloat = GameMath.Clamp(tryFloat, 0f, 0.4f);
                 if(_movementPenalty != tryFloat)
                 {
                     _movementPenalty = tryFloat;
@@ -246,7 +246,7 @@ namespace ExpandedStomach
                 StomachSize -= 50;
                 if (rand.NextDouble() < 0.5) // 50% chance
                 {
-                    FatMeter -= 0.01f; // decrease 2x slower
+                    FatMeter -= 0.01f;
                 }
             }
 
