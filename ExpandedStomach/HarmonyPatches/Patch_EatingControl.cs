@@ -331,20 +331,7 @@ namespace ExpandedStomach.HarmonyPatches
                 float proteinsat = hunger.GetFloat("proteinLevel");
                 float grainsat = hunger.GetFloat("grainLevel");
                 float dairysat = hunger.GetFloat("dairyLevel");
-
-                if (stomachsize - stomachsat < saturationConsumed)
-                {
-                    saturationConsumed = stomachsize - stomachsat;
-                    stomachsat = stomachsize;
-                    stomach.SetFloat("expandedStomachMeter", stomachsat);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                }
-                else
-                {
-                    stomachsat += saturationConsumed;
-                    stomach.SetFloat("expandedStomachMeter", stomachsat);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                }
+                //don't need to recalculate the saturation consumed
                 switch (foodCat)
                 {
                     case EnumFoodCategory.Fruit:

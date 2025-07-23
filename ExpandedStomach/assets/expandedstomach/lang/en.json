@@ -1,10 +1,12 @@
 {
-  "plus25": "My clothes are feeling a little tighter.",
-  "plus50": "My clothes are feeling pretty tight.",
-  "plus75": "My clothes are feeling very tight.",
-  "minus75": "My clothes feel better now, but they're still very tight.",
-  "minus50": "My clothes feel better now, but they're still pretty tight.",
-  "minus25": "My clothes feel better now, but they're still a little tight.",
-  "perfect": "My clothes fit perfectly now. I should try to avoid this in the future.",
-  "worst": "My clothes are so tight, they might burst! I really need to diet!"
+  "bodyfatplus25": "My clothes are feeling a little tighter.",
+  "bodyfatplus50": "My clothes are feeling pretty tight.",
+  "bodyfatplus75": "My clothes are feeling very tight.",
+  "bodyfatminus75": "My clothes feel better now, but they're still very tight.",
+  "bodyfatminus50": "My clothes feel better now, but they're still pretty tight.",
+  "bodyfatminus25": "My clothes feel better now, but they're still a little tight.",
+  "bodyfatperfect": "My clothes fit perfectly now. I should try to avoid this in the future.",
+  "bodyfatworst": "My clothes are so tight, they might burst! I really need to diet!",
+  "stomachwillgrow": "My stomach is getting bigger. I can hold more food now.",
+  "stomachwillshrink": "My stomach is getting a little smaller. I can hold less food now."
 }
