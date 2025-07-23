@@ -80,7 +80,7 @@ namespace ExpandedStomach
             set
             {
                 float tryFloat = float.IsNaN(value) ? 0f : value;
-                tryFloat = GameMath.Clamp(tryFloat, 0f, 0.5f);
+                tryFloat = GameMath.Clamp(tryFloat, 0f, 0.4f);
                 if(_movementPenalty != tryFloat)
                 {
                     _movementPenalty = tryFloat;
@@ -143,8 +143,11 @@ namespace ExpandedStomach
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
         {
             base.OnEntityDeath(damageSourceForDeath);
-            // halve stomach size
-            //StomachSize = StomachSize / 2; //remove until config file is implemented
+            // halve stomach size if enabled
+            if (entity.Api.World.Config.GetBool("ExpandedStomach.hardcoreDeath") == true)
+            {
+                StomachSize /= 2;
+            }
             ExpandedStomachMeter = 0;
         }
 
@@ -243,7 +246,7 @@ namespace ExpandedStomach
                 StomachSize -= 50;
                 if (rand.NextDouble() < 0.5) // 50% chance
                 {
-                    FatMeter -= 0.01f; // decrease 2x slower
+                    FatMeter -= 0.01f;
                 }
             }
 
