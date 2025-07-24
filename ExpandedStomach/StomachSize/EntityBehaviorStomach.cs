@@ -73,6 +73,36 @@ namespace ExpandedStomach
             }
         }
 
+        public float ExpandedStomachCapToday
+        {
+            get => StomachAttributes.GetFloat("expandedStomachCapToday", 0);
+            set
+            {
+                StomachAttributes.SetFloat("expandedStomachCapToday", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
+        public float ExpandedStomachCapAverage
+        {
+            get => StomachAttributes.GetFloat("expandedStomachCapAverage", 0);
+            set
+            {
+                StomachAttributes.SetFloat("expandedStomachCapAverage", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
+        public float SatConsumedToday
+        {
+            get => StomachAttributes.GetFloat("satConsumedToday", 0);
+            set
+            {
+                StomachAttributes.SetFloat("satConsumedToday", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
         private float _movementPenalty;
         public float MovementPenalty
         {
@@ -196,9 +226,10 @@ namespace ExpandedStomach
             // roll the dice to see if player is fat
             // probability of getting fat is determined by strain value. The higher the value, the higher the chance of getting fat
             int today = (int)Math.Floor(entity.World.Calendar.TotalDays);
-            if(today > days) // if a day has passed
+            if (today > days) // if a day has passed
             {
-                averagestrain = (((float)(days-dayCountOffset) * averagestrain) + strain) / (float)(today-dayCountOffset);
+                averagestrain = (averagestrain * 6 + strain) / 7;
+                ExpandedStomachCapAverage = (ExpandedStomachCapAverage * 6 + ExpandedStomachCapToday) / 7;
                 days = today;
                 CalculateFatandStomachSize();
                 CalculateMovementSpeedPenalty();
@@ -212,7 +243,7 @@ namespace ExpandedStomach
         {
             // calculate both gains and losses.
             //calculate fat level, stomach size, etc
-            
+
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
             // determine if gain or loss
@@ -225,28 +256,23 @@ namespace ExpandedStomach
             bool stable1 = strain == laststrain;
             bool stable2 = strain < laststrain && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
+            float fatlossChance = 1-strain;
 
-            if(overeating)
+            StomachSize = (int)ExpandedStomachCapAverage * 2; //auto caps to 500 if too low
+
+            if (overeating)
             {
-                StomachSize += 50;
                 //roll to see if fat meter goes up
-                if(rand.NextDouble() < strain) // 50% chance
+                if (rand.NextDouble() < strain) // probability scaled by strain
                 {
-                    FatMeter += 0.01f  * (1 + averagestrain); //increase slowly but more if strain values are high
+                    FatMeter += 0.0025f * (1 + averagestrain); // reduced from 0.01f to 0.0025f for slower fat gain
                 }
-            }
-            else if (stable1 || stable2)
-            {
-                //not pushing limits, decrease stomach amount
-                StomachSize -= 25;
             }
             else if (dieting)
             {
-                //actively not eating
-                StomachSize -= 50;
-                if (rand.NextDouble() < 0.5) // 50% chance
+                if (rand.NextDouble() < fatlossChance) // 50% chance
                 {
-                    FatMeter -= 0.01f;
+                    FatMeter -= 0.002f; // reduced from 0.01f to 0.002f for slower fat loss
                 }
             }
 
@@ -258,18 +284,19 @@ namespace ExpandedStomach
         }
 
         float proximity = 0f;
-        float buildrate = 0.01f;
-        float decayrate = 0.005f;
+        float buildrate = 0.04f;  // increased from 0.01f to 0.04f to build strain faster
+        float decayrate = 0.01f;  // increased from 0.005f to 0.01f to decay strain faster
 
         public void ServerTick2min(float deltaTime) // used to calculate expanded stomach size and if fat should rise
         {
+            if (ExpandedStomachMeter > ExpandedStomachCapToday) ExpandedStomachCapToday = ExpandedStomachMeter;
             proximity = Math.Clamp(ExpandedStomachMeter / StomachSize, 0f, 1f);
             if (proximity > 0f) ExpandedStomachWasActive = true;
-            if(proximity >= 0.9f) // if 90% of stomach is full
+            if (proximity >= 0.9f) // if 90% of stomach is full
             {
                 strain += buildrate * (proximity - 0.9f) / 0.1f; // increases faster the closer to the limit
             }
-            if(CurrentSatiety < MaxSatiety) // if player is not overeating, assume they're on a diet
+            if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {
                 proximity = 0.5f;
                 strain -= decayrate * (1f - proximity);
@@ -282,6 +309,7 @@ namespace ExpandedStomach
                 "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
                 EnumChatType.Notification);
         }
+
 
         public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
         {
