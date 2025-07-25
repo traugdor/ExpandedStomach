@@ -39,6 +39,14 @@ public class ExpandedStomachModSystem : ModSystem
             case EnumAppSide.Server:
                 sConfig = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(api, ConfigServer.configName);
                 api.World.Config.SetBool("ExpandedStomach.hardcoreDeath", sConfig.hardcoreDeath);
+                api.World.Config.SetFloat("ExpandedStomach.stomachSatLossMultiplier", sConfig.stomachSatLossMultiplier);
+                api.World.Config.SetFloat("ExpandedStomach.drawbackSeverity", sConfig.drawbackSeverity);
+                api.World.Config.SetFloat("ExpandedStomach.strainGainRate", sConfig.strainGainRate);
+                api.World.Config.SetFloat("ExpandedStomach.strainLossRate", sConfig.strainLossRate);
+                api.World.Config.SetFloat("ExpandedStomach.fatGainRate", sConfig.fatGainRate);
+                api.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
+                api.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
+                api.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
                 break;
         }
     }

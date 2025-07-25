@@ -121,7 +121,37 @@ namespace ExpandedStomach.HarmonyPatches
         } // <--- See Patch_EatingControl.cs>
     }
     //----------------------------------------------------------------------------
+    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "set_Saturation")]
+    public static class Patch_EntityBehaviorHunger_set_Saturation
+    {
+        public static bool Prefix(EntityBehaviorHunger __instance, ref float value)
+        {
+            var hunger = __instance.entity.WatchedAttributes.GetTreeAttribute("hunger");
+            var ExpandedStomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            float currentSaturation = hunger.GetFloat("currentsaturation");
+            float currentStomachSat = ExpandedStomach.GetFloat("ExpandedStomachMeter");
+            if (currentSaturation > value)
+            {
+                if (currentStomachSat > 0)
+                {
+                    currentStomachSat -= value;
+                    if (currentStomachSat < 0)
+                    {
+                        value += currentStomachSat;
+                        currentStomachSat = 0;
+                    }
+                    else
+                    {
+                        value = 0;
+                    }
+                }
+                ExpandedStomach.SetFloat("ExpandedStomachMeter", currentStomachSat);
+                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
 
+            return true; //allow method to proceed with new value
+        }
+    }
 
     [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "ReduceSaturation")] // Change to actual method name if different
     [HarmonyPriority(Priority.Last)]
