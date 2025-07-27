@@ -8,7 +8,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
-namespace ExpandedStomach.StomachSize
+namespace ExpandedStomach
 {
     internal class CommandHandlers
     {
@@ -33,12 +33,12 @@ namespace ExpandedStomach.StomachSize
 
         internal TextCommandResult ESDebug(TextCommandCallingArgs args)
         {
-            return TextCommandResult.Success();
+            return TextCommandResult.Error("Please enter a valid subcommand. Type /help es for a list of valid subcommands.");
         }
 
         internal TextCommandResult PrintConfig(TextCommandCallingArgs args)
         {
-            var config = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
             string output = "";
             foreach (var prop in config.GetType().GetProperties())
             {
@@ -51,8 +51,8 @@ namespace ExpandedStomach.StomachSize
         {
             try
             {
-                string playername = (args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString());
-                float level = (args.Parsers[1].IsMissing ? 0f : float.Parse(args.Parsers[1].GetValue().ToString()));
+                string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+                float level = args.Parsers[1].IsMissing ? 0f : float.Parse(args.Parsers[1].GetValue().ToString());
 
                 var allplayers = serverAPI.World.AllOnlinePlayers;
                 bool playerFound = false;
@@ -82,8 +82,8 @@ namespace ExpandedStomach.StomachSize
         {
             try
             {
-                string playername = (args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString());
-                float level = (args.Parsers[1].IsMissing ? 0f : float.Parse(args.Parsers[1].GetValue().ToString()));
+                string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+                float level = args.Parsers[1].IsMissing ? 0f : float.Parse(args.Parsers[1].GetValue().ToString());
 
                 var allplayers = serverAPI.World.AllOnlinePlayers;
                 bool playerFound = false;
@@ -112,7 +112,7 @@ namespace ExpandedStomach.StomachSize
         {
             try
             {
-                string playername = (args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString());
+                string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
                 int size = GameMath.Clamp(args.Parsers[1].IsMissing ? 0 : int.Parse(args.Parsers[1].GetValue().ToString()), 500, 5500);
 
                 var allplayers = serverAPI.World.AllOnlinePlayers;
@@ -140,7 +140,7 @@ namespace ExpandedStomach.StomachSize
 
         internal TextCommandResult PrintInfo(TextCommandCallingArgs args)
         {
-            string playername = (args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString());
+            string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
             var allplayers = serverAPI.World.AllOnlinePlayers;
             bool playerFound = false;
             IPlayer thePlayer = null;
@@ -156,11 +156,57 @@ namespace ExpandedStomach.StomachSize
             if (!playerFound) return TextCommandResult.Error("Player not found.");
             var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Stomach Level/Size: " + stomach.StomachSize.ToString() + "/" + stomach.ExpandedStomachMeter.ToString());
+            sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
             sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
             sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
             sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
             return TextCommandResult.Success(sb.ToString());
+        }
+
+        internal TextCommandResult SetConfig(TextCommandCallingArgs args)
+        {
+            string key = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+            string value = args.Parsers[1].IsMissing ? "" : args.Parsers[1].GetValue().ToString();
+            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+
+            switch (key.ToLower())
+            {
+                case "hardcoredeath":
+                    config.hardcoreDeath = bool.Parse(value);
+                    break;
+                case "stomachsatslossmultiplier":
+                    config.stomachSatLossMultiplier = float.Parse(value);
+                    break;
+                case "drawbackseverity":
+                    config.drawbackSeverity = float.Parse(value);
+                    break;
+                case "straingainrate":
+                    config.strainGainRate = float.Parse(value);
+                    break;
+                case "strainlossrate":
+                    config.strainLossRate = float.Parse(value);
+                    break;
+                case "fatgainrate":
+                    config.fatGainRate = float.Parse(value);
+                    break;
+                case "fatlossrate":
+                    config.fatLossRate = float.Parse(value);
+                    break;
+                case "difficulty":
+                    config.difficulty = value;
+                    break;
+                case "debugmode":
+                    config.debugMode = bool.Parse(value);
+                    break;
+                case "immersivemessages":
+                    config.immersiveMessages = bool.Parse(value);
+                    break;
+               default:
+                    return TextCommandResult.Error("You did not specify a valid key.");
+            }
+
+            ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            return TextCommandResult.Success($"Config {key} set to {value}");
         }
     }
 }

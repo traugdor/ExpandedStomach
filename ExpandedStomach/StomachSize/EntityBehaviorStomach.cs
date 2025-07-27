@@ -205,7 +205,7 @@ namespace ExpandedStomach
         private void CalculateMovementSpeedPenalty()
         {
             //cap to 50% movement penalty
-            MovementPenalty = FatMeter * 0.4f;
+            MovementPenalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
         }
 
         private void UpdateWalkSpeed()

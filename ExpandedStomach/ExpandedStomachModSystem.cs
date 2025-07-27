@@ -125,6 +125,11 @@ public class ExpandedStomachModSystem : ModSystem
                     .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("player")})
                     .HandleWith(ch.PrintInfo)
                 .EndSubCommand()
+                .BeginSubCommand("setConfig")
+                    .WithDescription("Sets a config value.")
+                    .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("key"),parsers.OptionalWord("value")})
+                    .HandleWith(ch.SetConfig)
+                .EndSubCommand()
             .EndSubCommand();
     }
 }
