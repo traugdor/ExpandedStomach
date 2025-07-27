@@ -46,6 +46,8 @@ namespace ExpandedStomach
         public string imDescription => "Toggle on/off the immersive messages that appear when using the mod. (Requires a restart)";
         [JsonProperty(Order = 16)]
         public bool immersiveMessages { get; set; } = true;
+        [JsonProperty(Order = 17)]
+        public bool debugMode { get; set; } = false;
 
         public ConfigServer(ICoreAPI api, ConfigServer previousConfig = null)
         {
@@ -60,6 +62,7 @@ namespace ExpandedStomach
             strainGainRate = previousConfig.strainGainRate;
             strainLossRate = previousConfig.strainLossRate;
             difficulty = previousConfig.difficulty;
+            debugMode = previousConfig.debugMode;
         }
     }
 }

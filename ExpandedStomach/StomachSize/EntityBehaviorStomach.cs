@@ -169,6 +169,8 @@ namespace ExpandedStomach
             }
         }
 
+        bool debugmode = false;
+
         bool ExpandedStomachWasActive = false;
 
         public override void OnEntityDeath(DamageSource damageSourceForDeath)
@@ -220,6 +222,7 @@ namespace ExpandedStomach
                 dayCountOffset = (int)Math.Floor(entity.World.Calendar.TotalDays);
                 days = dayCountOffset;
             }
+            debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
         }
 
         public void ServerTickSUPERSlow(float deltaTime)
@@ -269,11 +272,13 @@ namespace ExpandedStomach
             {
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
-            if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "easy")
+            if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "easy" || debugmode == true)
             {
                 smessage += " (" + newstomachsize.ToString() + " units)";
             }
             StomachSize = newstomachsize;
+
+            float oldFatMeter = FatMeter;
 
             if (overeating)
             {
@@ -291,14 +296,25 @@ namespace ExpandedStomach
                 }
             }
 
+            bool FatMeterChanged = FatMeter.isDifferent(oldFatMeter);
+
             switch (entity.Api.World.Config.GetString("ExpandedStomach.difficulty"))
             {
                 case "easy":
                 case "normal":
                     smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
-                    if (stomachsizechanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                    if (FatMeterChanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                         smessage,
                         EnumChatType.Notification);
+                    break;
+                case "hard":
+                    if (debugmode == true)
+                    {
+                        smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
+                        if (FatMeterChanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                            smessage,
+                            EnumChatType.Notification);
+                    }
                     break;
             }
         }
@@ -405,6 +421,11 @@ public static class ExtensionMethods
     }
 
     public static bool isDifferent(this int value, int a)
+    {
+        return a != value;
+    }
+
+    public static bool isDifferent(this float value, float a)
     {
         return a != value;
     }

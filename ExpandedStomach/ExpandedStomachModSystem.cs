@@ -47,6 +47,7 @@ public class ExpandedStomachModSystem : ModSystem
                 api.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
                 api.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
                 api.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
+                api.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
                 break;
         }
     }
