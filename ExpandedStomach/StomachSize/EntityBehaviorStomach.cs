@@ -104,6 +104,16 @@ namespace ExpandedStomach
             }
         }
 
+        public bool OopsWeDied
+        {
+            get => StomachAttributes.GetBool("OopsWeDied", false);
+            set
+            {
+                StomachAttributes.SetBool("OopsWeDied", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
         private float _movementPenalty;
         public float MovementPenalty
         {
@@ -182,6 +192,8 @@ namespace ExpandedStomach
                 StomachSize /= 2;
             }
             ExpandedStomachMeter = 0;
+            if(entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "hard")
+                OopsWeDied = true;
         }
 
         private void CalculateMovementSpeedPenalty()
@@ -232,6 +244,7 @@ namespace ExpandedStomach
             int today = (int)Math.Floor(entity.World.Calendar.TotalDays);
             if (today > days) // if a day has passed
             {
+                if(OopsWeDied) OopsWeDied = false;
                 averagestrain = (averagestrain * 6 + strain) / 7;
                 ExpandedStomachCapAverage = (ExpandedStomachCapAverage * 6 + ExpandedStomachCapToday) / 7;
                 days = today;
@@ -354,7 +367,7 @@ namespace ExpandedStomach
             //update last time player ate
             float percentfull = ExpandedStomachMeter / StomachSize;
             if (percentfull <= 0 ) return;
-            if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1))
+            if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
                 //get stomach sat and size and calculate percentage
