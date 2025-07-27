@@ -1,12 +1,13 @@
 {
   "type": "code",
   "modid": "expandedstomach",
-  "name": "ExpandedStomach",
+  "name": "Expanded Stomach: Eat More. Less Often.",
   "authors": [
-    "traugdor"
+    "traugdor",
+    "LadyWYT"
   ],
   "description": "Eat all you want. Finish that last bite...",
-  "version": "1.0.5",
+  "version": "1.0.0",
   "dependencies": {
     "game": "1.20.12"
   }

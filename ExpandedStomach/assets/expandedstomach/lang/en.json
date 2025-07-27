@@ -8,5 +8,10 @@
   "bodyfatperfect": "My clothes fit perfectly now. I should try to avoid this in the future.",
   "bodyfatworst": "My clothes are so tight, they might burst! I really need to diet!",
   "stomachwillgrow": "My stomach is getting bigger. I can hold more food now.",
-  "stomachwillshrink": "My stomach is getting a little smaller. I can hold less food now."
+  "stomachwillshrink": "My stomach is getting a little smaller. I can hold less food now.",
+  "stomachover25": "That was tasty! I could eat more, but I should pace myself.",
+  "stomachover50": "Oh that was more than I expected. I should be careful not to overdo it.",
+  "stomachover75": "That last bite was slower than it should have been. I should quit now.",
+  "stomachover100": "I don't think I can eat another bite. It would be too much.",
+  "hello": "LET'S GET FAT!"
 }
