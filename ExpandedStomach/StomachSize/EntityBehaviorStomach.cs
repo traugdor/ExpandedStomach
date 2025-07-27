@@ -273,6 +273,7 @@ namespace ExpandedStomach
             {
                 smessage += " (" + newstomachsize.ToString() + " units)";
             }
+            StomachSize = newstomachsize;
 
             if (overeating)
             {
@@ -295,11 +296,11 @@ namespace ExpandedStomach
                 case "easy":
                 case "normal":
                     smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
-                    break;
-            }
-            if (stomachsizechanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                    if (stomachsizechanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                         smessage,
                         EnumChatType.Notification);
+                    break;
+            }
         }
 
         float proximity = 0f;
@@ -330,47 +331,56 @@ namespace ExpandedStomach
             strain = Math.Clamp(strain, 0f, 1f);
         }
 
+        DateTime lastrecievedsaturation; // put a cooldown on the messages
 
         public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
         {
             //update last time player ate
-            ; //do nothing... we might even remove this entire function later
-            //get stomach sat and size and calculate percentage
             float percentfull = ExpandedStomachMeter / StomachSize;
-            if (entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"))
+            if (percentfull <= 0 ) return;
+            if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1))
             {
-                bool messageset = false;
-                var player = entity as EntityPlayer;
-                var serverPlayer = player?.Player as IServerPlayer;
-                //serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-                //    "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
-                //    EnumChatType.Notification);
-                string message = "";
-                if (percentfull.between(0.25f, 0.5f))
+                lastrecievedsaturation = DateTime.Now;
+                //get stomach sat and size and calculate percentage
+                
+                if (entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages") && saturation >= 0)
                 {
-                    //get message from language file
-                    message = Lang.Get("expandedstomach:stomachover25");
-                    messageset = true;
+                    bool messageset = false;
+                    var player = entity as EntityPlayer;
+                    var serverPlayer = player?.Player as IServerPlayer;
+                    //serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                    //    "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
+                    //    EnumChatType.Notification);
+                    string message = "";
+                    if (percentfull.between(0.25f, 0.5f))
+                    {
+                        //get message from language file
+                        message = Lang.Get("expandedstomach:stomachover25");
+                        messageset = true;
+                    }
+                    else if (percentfull.between(0.5f, 0.75f))
+                    {
+                        message = Lang.Get("expandedstomach:stomachover50");
+                        messageset = true;
+                    }
+                    else if (percentfull.between(0.75f, 1f))
+                    {
+                        message = Lang.Get("expandedstomach:stomachover75");
+                        messageset = true;
+                    }
+                    else if (percentfull >= 1f)
+                    {
+                        message = Lang.Get("expandedstomach:stomachover100");
+                        messageset = true;
+                    }
+                    if (messageset) serverPlayer.SendMessage(GlobalConstants.InfoLogChatGroup, "     \"" + message + "\"", EnumChatType.Notification);
                 }
-                else if (percentfull.between(0.5f, 0.75f))
-                {
-                    message = Lang.Get("expandedstomach:stomachover50");
-                    messageset = true;
-                }
-                else if (percentfull.between(0.75f, 1f))
-                {
-                    message = Lang.Get("expandedstomach:stomachover75");
-                    messageset = true;
-                }
-                else if (percentfull >= 1f)
-                {
-                    message = Lang.Get("expandedstomach:stomachover100");
-                    messageset = true;
-                }
-                if(messageset) serverPlayer.SendMessage(GlobalConstants.InfoLogChatGroup, "     \"" + message + "\"", EnumChatType.Notification);
+            }
+            else
+            {
+                lastrecievedsaturation = DateTime.Now;
             }
         }
-
 
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
