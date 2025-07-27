@@ -54,6 +54,12 @@ namespace ExpandedStomach
             }
         }
 
+        public void SetFatMeter(float value)
+        {
+            FatMeter = value;
+            CalculateMovementSpeedPenalty();
+        }
+
         public float MaxSatiety //just an accessor for base game
         {
             get => entity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("maxsaturation");
@@ -204,7 +210,7 @@ namespace ExpandedStomach
 
         private void UpdateWalkSpeed()
         {
-            entity.Stats.Set("walkspeed", "fatPenalty", -MovementPenalty, true);
+            entity.Stats.Set("walkspeed", "fatPenalty", -MovementPenalty, false);
         }
 
         public EntityBehaviorStomach(Entity entity) : base(entity)
@@ -285,11 +291,11 @@ namespace ExpandedStomach
             {
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
+            StomachSize = newstomachsize;
             if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "easy" || debugmode == true)
             {
-                smessage += " (" + newstomachsize.ToString() + " units)";
+                smessage += " (" + StomachSize.ToString() + " units)";
             }
-            StomachSize = newstomachsize;
 
             float oldFatMeter = FatMeter;
 
