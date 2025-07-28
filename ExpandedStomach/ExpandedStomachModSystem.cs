@@ -26,7 +26,6 @@ public class ExpandedStomachModSystem : ModSystem
     // Useful for registering block/entity classes on both sides
     public override void Start(ICoreAPI api)
     {
-        api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
         Api = api;
         Logger = Mod.Logger;
         coreapi = api;
@@ -34,6 +33,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public override void StartPre(ICoreAPI api)
     {
+        api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
         switch (api.Side)
         {
             case EnumAppSide.Server:

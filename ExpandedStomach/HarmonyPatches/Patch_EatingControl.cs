@@ -128,26 +128,29 @@ namespace ExpandedStomach.HarmonyPatches
         {
             var hunger = __instance.entity.WatchedAttributes.GetTreeAttribute("hunger");
             var ExpandedStomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            float currentSaturation = hunger.GetFloat("currentsaturation");
-            float currentStomachSat = ExpandedStomach.GetFloat("expandedStomachMeter");
-            if (currentSaturation > value)
+            if(ExpandedStomach != null && hunger != null)
             {
-                if (currentStomachSat > 0)
+                float currentSaturation = hunger.GetFloat("currentsaturation");
+                float currentStomachSat = ExpandedStomach.GetFloat("expandedStomachMeter");
+                if (currentSaturation > value)
                 {
-                    float difference = currentSaturation - value;
-                    currentStomachSat -= difference;
-                    if (currentStomachSat < 0)
+                    if (currentStomachSat > 0)
                     {
-                        value += currentStomachSat;
-                        currentStomachSat = 0;
+                        float difference = currentSaturation - value;
+                        currentStomachSat -= difference;
+                        if (currentStomachSat < 0)
+                        {
+                            value += currentStomachSat;
+                            currentStomachSat = 0;
+                        }
+                        else
+                        {
+                            value = currentSaturation; // currentsaturation remains unchanged
+                        }
                     }
-                    else
-                    {
-                        value = currentSaturation; // currentsaturation remains unchanged
-                    }
+                    ExpandedStomach.SetFloat("expandedStomachMeter", currentStomachSat);
+                    __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
-                ExpandedStomach.SetFloat("expandedStomachMeter", currentStomachSat);
-                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
 
             return true; //allow method to proceed with new value
