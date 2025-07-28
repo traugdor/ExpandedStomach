@@ -62,6 +62,7 @@ namespace ExpandedStomach
             strainGainRate = previousConfig.strainGainRate;
             strainLossRate = previousConfig.strainLossRate;
             difficulty = previousConfig.difficulty;
+            immersiveMessages = previousConfig.immersiveMessages;
             debugMode = previousConfig.debugMode;
         }
     }

@@ -56,6 +56,9 @@
 </ItemGroup>
 
 <ItemGroup>
+  <None Update="assets\expandedstomach\lang\en.json">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+  </None>
   <None Update="modicon.png">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </None>
