@@ -202,7 +202,7 @@ namespace ExpandedStomach
                 OopsWeDied = true;
         }
 
-        private void CalculateMovementSpeedPenalty()
+        internal void CalculateMovementSpeedPenalty()
         {
             //cap to 50% movement penalty
             MovementPenalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
@@ -233,13 +233,13 @@ namespace ExpandedStomach
                 strain = 0;
                 laststrain = 0;
                 averagestrain = 0;
-                CalculateMovementSpeedPenalty();
             }
             if (!entity.WatchedAttributes.HasAttribute("dayCountOffset"))
             {
                 dayCountOffset = (int)Math.Floor(entity.World.Calendar.TotalDays);
                 days = dayCountOffset;
             }
+            CalculateMovementSpeedPenalty();
             debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
         }
 

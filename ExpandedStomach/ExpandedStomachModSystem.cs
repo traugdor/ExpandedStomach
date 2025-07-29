@@ -85,6 +85,11 @@ public class ExpandedStomachModSystem : ModSystem
     {
         var entity = thePlayer.Entity;
         if(entity == null) return;
+        var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
+        if (stomachbehavior != null)
+        {
+            stomachbehavior.CalculateMovementSpeedPenalty();
+        }
     }
 
     public void RegisterCommands(ICoreServerAPI api)
