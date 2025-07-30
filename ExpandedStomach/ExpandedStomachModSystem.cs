@@ -102,10 +102,8 @@ public class ExpandedStomachModSystem : ModSystem
             .RequiresPrivilege(Privilege.root) //only run if you are server OP
             .RequiresPlayer()
             .WithDescription("Expanded Stomach root command. Use `/help es` for more information")
-            .HandleWith(ch.ESMain)
             .BeginSubCommand("debug")
                 .WithDescription("Debug commands for Expanded Stomach mod.")
-                .HandleWith(ch.ESDebug)
                 .BeginSubCommand("printInfo")
                     .WithDescription("Prints info about a player's stomach to the console.")
                     .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("player") })

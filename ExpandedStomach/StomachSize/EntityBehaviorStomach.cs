@@ -272,13 +272,17 @@ namespace ExpandedStomach
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
-            string smessage;
+            string smessage = "";
             bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
             int increasedifference = (int)ExpandedStomachCapAverage * 2 - StomachSize;
-            switch (entity.Api.World.Config.GetString("ExpandedStomach.difficulty"))
+            string difficulty = entity.Api.World.Config.GetString("ExpandedStomach.difficulty");
+            switch (difficulty)
             {
                 case "easy":
-                    increasedifference *= 2;
+                    if(increasedifference > 0)
+                        increasedifference *= 2;
+                    if(increasedifference < 0)
+                        increasedifference /= 2;
                     break;
                 case "hard":
                     increasedifference /= 2;
@@ -292,13 +296,13 @@ namespace ExpandedStomach
             {
                 smessage = Lang.Get("expandedstomach:stomachwillgrow");
             }
-            else
+            else if (newstomachsize < StomachSize && newstomachsize > 500)
             {
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
             StomachSize = newstomachsize;
             if(newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
-            if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "easy" || debugmode == true)
+            if (difficulty == "easy" || debugmode == true)
             {
                 smessage += " (" + StomachSize.ToString() + " units)";
             }
@@ -308,16 +312,50 @@ namespace ExpandedStomach
             if (overeating)
             {
                 //roll to see if fat meter goes up
-                if (rand.NextDouble() < strain) // probability scaled by strain
+                switch (difficulty)
                 {
-                    FatMeter += 0.0025f * (1 + averagestrain); // reduced from 0.01f to 0.0025f for slower fat gain
+                    case "easy":
+                        if (rand.NextDouble() + 0.25f < strain) // fat increases are skewed by 25% to make them less common
+                        {
+                            FatMeter += 0.0025f * (1 + averagestrain);
+                        }
+                        break;
+                    case "normal":
+                        if (rand.NextDouble() < strain)
+                        {
+                            FatMeter += 0.0025f * (1 + averagestrain);
+                        }
+                        break;
+                    case "hard":
+                        if (rand.NextDouble() - 0.25f < strain) // fat increases are skewed by 25% to make them MORE common
+                        {
+                            FatMeter += 0.0025f * (1 + averagestrain);
+                        }
+                        break;
                 }
             }
             else if (dieting)
             {
-                if (rand.NextDouble() < fatlossChance) // 50% chance
+                switch (difficulty)
                 {
-                    FatMeter -= 0.002f; // reduced from 0.01f to 0.002f for slower fat loss
+                    case "easy":
+                        if (rand.NextDouble() - 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them more common
+                        {
+                            FatMeter -= 0.004f; //lose fat faster
+                        }
+                        break;
+                    case "normal":
+                        if (rand.NextDouble() < fatlossChance)
+                        {
+                            FatMeter -= 0.002f;
+                        }
+                        break;
+                    case "hard":
+                        if (rand.NextDouble() + 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them less common
+                        {
+                            FatMeter -= 0.002f;
+                        }
+                        break;
                 }
             }
 
@@ -526,5 +564,10 @@ public static class ExtensionMethods
     public static bool isDifferent(this float value, float a)
     {
         return a != value;
+    }
+
+    public static string getDifficulty(this EntityAgent EnAgent)
+    {
+        return EnAgent.Api.World.Config.GetString("ExpandedStomach.difficulty");
     }
 }

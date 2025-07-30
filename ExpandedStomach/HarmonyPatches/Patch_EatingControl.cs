@@ -380,27 +380,40 @@ namespace ExpandedStomach.HarmonyPatches
                 float proteinsat = hunger.GetFloat("proteinLevel");
                 float grainsat = hunger.GetFloat("grainLevel");
                 float dairysat = hunger.GetFloat("dairyLevel");
+                float satMult = 1f;
                 //don't need to recalculate the saturation consumed
+                switch (byEntity.getDifficulty())
+                {
+                    case "easy":
+                        satMult = 0.5f;
+                        break;
+                    case "normal":
+                        satMult = 0.25f;
+                        break;
+                    case "hard":
+                        satMult = 0.15f;
+                        break;
+                }
                 switch (foodCat)
                 {
                     case EnumFoodCategory.Fruit:
-                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.25f);
+                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * satMult);
                         hunger.SetFloat("fruitLevel", fruitsat);
                         break;
                     case EnumFoodCategory.Vegetable:
-                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.25f);
+                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * satMult);
                         hunger.SetFloat("vegetableLevel", vegetablesat);
                         break;
                     case EnumFoodCategory.Protein:
-                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.25f);
+                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * satMult);
                         hunger.SetFloat("proteinLevel", proteinsat);
                         break;
                     case EnumFoodCategory.Grain:
-                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.25f);
+                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * satMult);
                         hunger.SetFloat("grainLevel", grainsat);
                         break;
                     case EnumFoodCategory.Dairy:
-                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.25f);
+                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * satMult);
                         hunger.SetFloat("dairyLevel", dairysat);
                         break;
                     default:
