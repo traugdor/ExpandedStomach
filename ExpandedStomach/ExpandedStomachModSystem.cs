@@ -26,7 +26,6 @@ public class ExpandedStomachModSystem : ModSystem
     // Useful for registering block/entity classes on both sides
     public override void Start(ICoreAPI api)
     {
-        api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
         Api = api;
         Logger = Mod.Logger;
         coreapi = api;
@@ -34,6 +33,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public override void StartPre(ICoreAPI api)
     {
+        api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
         switch (api.Side)
         {
             case EnumAppSide.Server:
@@ -85,6 +85,11 @@ public class ExpandedStomachModSystem : ModSystem
     {
         var entity = thePlayer.Entity;
         if(entity == null) return;
+        var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
+        if (stomachbehavior != null)
+        {
+            stomachbehavior.CalculateMovementSpeedPenalty();
+        }
     }
 
     public void RegisterCommands(ICoreServerAPI api)
@@ -101,29 +106,29 @@ public class ExpandedStomachModSystem : ModSystem
             .BeginSubCommand("debug")
                 .WithDescription("Debug commands for Expanded Stomach mod.")
                 .HandleWith(ch.ESDebug)
-                .BeginSubCommand("printConfig")
-                    .WithDescription("Prints the config file to the console.")
-                    .HandleWith(ch.PrintConfig)
+                .BeginSubCommand("printInfo")
+                    .WithDescription("Prints info about a player's stomach to the console.")
+                    .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("player") })
+                    .HandleWith(ch.PrintInfo)
+                .EndSubCommand()
+                .BeginSubCommand("setFatLevel")
+                    .WithDescription("Sets the fat level of a player to a percentage of its maximum.")
+                    .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("player"), parsers.OptionalFloat("level") })
+                    .HandleWith(ch.SetFatLevel)
                 .EndSubCommand()
                 .BeginSubCommand("setStomachLevel")
                     .WithDescription("Sets the stomach level of a player to a percentage of its maximum.")
                     .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("player"),parsers.OptionalFloat("level")})
                     .HandleWith(ch.SetStomachLevel)
                 .EndSubCommand()
-                .BeginSubCommand("setFatLevel")
-                    .WithDescription("Sets the fat level of a player to a percentage of its maximum.")
-                    .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("player"),parsers.OptionalFloat("level")})
-                    .HandleWith(ch.SetFatLevel)
-                .EndSubCommand()
                 .BeginSubCommand("setStomachSize")
                     .WithDescription("Sets the stomach size of a player (500-5500).")
                     .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("player"),parsers.OptionalInt("size")})
                     .HandleWith(ch.SetStomachSize)
                 .EndSubCommand()
-                .BeginSubCommand("printInfo")
-                    .WithDescription("Prints info about a player's stomach to the console.")
-                    .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("player")})
-                    .HandleWith(ch.PrintInfo)
+                .BeginSubCommand("printConfig")
+                    .WithDescription("Prints the config file to the console.")
+                    .HandleWith(ch.PrintConfig)
                 .EndSubCommand()
                 .BeginSubCommand("setConfig")
                     .WithDescription("Sets a config value.")

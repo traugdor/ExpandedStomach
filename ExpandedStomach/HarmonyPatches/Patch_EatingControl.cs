@@ -128,26 +128,29 @@ namespace ExpandedStomach.HarmonyPatches
         {
             var hunger = __instance.entity.WatchedAttributes.GetTreeAttribute("hunger");
             var ExpandedStomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            float currentSaturation = hunger.GetFloat("currentsaturation");
-            float currentStomachSat = ExpandedStomach.GetFloat("expandedStomachMeter");
-            if (currentSaturation > value)
+            if(ExpandedStomach != null && hunger != null)
             {
-                if (currentStomachSat > 0)
+                float currentSaturation = hunger.GetFloat("currentsaturation");
+                float currentStomachSat = ExpandedStomach.GetFloat("expandedStomachMeter");
+                if (currentSaturation > value)
                 {
-                    float difference = currentSaturation - value;
-                    currentStomachSat -= difference;
-                    if (currentStomachSat < 0)
+                    if (currentStomachSat > 0)
                     {
-                        value += currentStomachSat;
-                        currentStomachSat = 0;
+                        float difference = currentSaturation - value;
+                        currentStomachSat -= difference;
+                        if (currentStomachSat < 0)
+                        {
+                            value += currentStomachSat;
+                            currentStomachSat = 0;
+                        }
+                        else
+                        {
+                            value = currentSaturation; // currentsaturation remains unchanged
+                        }
                     }
-                    else
-                    {
-                        value = currentSaturation; // currentsaturation remains unchanged
-                    }
+                    ExpandedStomach.SetFloat("expandedStomachMeter", currentStomachSat);
+                    __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
-                ExpandedStomach.SetFloat("expandedStomachMeter", currentStomachSat);
-                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
 
             return true; //allow method to proceed with new value
@@ -381,23 +384,23 @@ namespace ExpandedStomach.HarmonyPatches
                 switch (foodCat)
                 {
                     case EnumFoodCategory.Fruit:
-                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.1f);
+                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("fruitLevel", fruitsat);
                         break;
                     case EnumFoodCategory.Vegetable:
-                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.1f);
+                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.25f);
                         hunger.SetFloat("vegetableLevel", vegetablesat);
                         break;
                     case EnumFoodCategory.Protein:
-                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.1f);
+                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("proteinLevel", proteinsat);
                         break;
                     case EnumFoodCategory.Grain:
-                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.1f);
+                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("grainLevel", grainsat);
                         break;
                     case EnumFoodCategory.Dairy:
-                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.1f);
+                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.25f);
                         hunger.SetFloat("dairyLevel", dairysat);
                         break;
                     default:

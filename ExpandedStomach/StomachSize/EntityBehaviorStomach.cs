@@ -202,7 +202,7 @@ namespace ExpandedStomach
                 OopsWeDied = true;
         }
 
-        private void CalculateMovementSpeedPenalty()
+        internal void CalculateMovementSpeedPenalty()
         {
             //cap to 50% movement penalty
             MovementPenalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
@@ -233,13 +233,13 @@ namespace ExpandedStomach
                 strain = 0;
                 laststrain = 0;
                 averagestrain = 0;
-                CalculateMovementSpeedPenalty();
             }
             if (!entity.WatchedAttributes.HasAttribute("dayCountOffset"))
             {
                 dayCountOffset = (int)Math.Floor(entity.World.Calendar.TotalDays);
                 days = dayCountOffset;
             }
+            CalculateMovementSpeedPenalty();
             debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
         }
 
@@ -253,6 +253,7 @@ namespace ExpandedStomach
                 if(OopsWeDied) OopsWeDied = false;
                 averagestrain = (averagestrain * 6 + strain) / 7;
                 ExpandedStomachCapAverage = (ExpandedStomachCapAverage * 6 + ExpandedStomachCapToday) / 7;
+                ExpandedStomachCapToday = 0;
                 days = today;
                 CalculateFatandStomachSize();
                 CalculateMovementSpeedPenalty();
@@ -264,23 +265,27 @@ namespace ExpandedStomach
 
         private void CalculateFatandStomachSize()
         {
-            // calculate both gains and losses.
-            //calculate fat level, stomach size, etc
-
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
-            // determine if gain or loss
-
-            // overeating = strain higher than previous day
-            // stable = strain same as previous day it neither went up nor down, or it's lower but expanded stomach was active
-            // dieting = strain lower than previous day
 
             bool overeating = strain > averagestrain;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
             string smessage;
-            int newstomachsize = GameMath.Max((int)ExpandedStomachCapAverage * 2, 500); //auto caps to 500 if too low
+            bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
+            int increasedifference = (int)ExpandedStomachCapAverage * 2 - StomachSize;
+            switch (entity.Api.World.Config.GetString("ExpandedStomach.difficulty"))
+            {
+                case "easy":
+                    increasedifference *= 2;
+                    break;
+                case "hard":
+                    increasedifference /= 2;
+                    break;
+
+            }
+            int newstomachsize = GameMath.Max(StomachSize + increasedifference, 500); //auto caps to 500 if too low
             bool stomachsizechanged = newstomachsize.isDifferent(StomachSize);
 
             if (newstomachsize > StomachSize)
@@ -292,6 +297,7 @@ namespace ExpandedStomach
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
             StomachSize = newstomachsize;
+            if(newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
             if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "easy" || debugmode == true)
             {
                 smessage += " (" + StomachSize.ToString() + " units)";
@@ -320,17 +326,56 @@ namespace ExpandedStomach
             switch (entity.Api.World.Config.GetString("ExpandedStomach.difficulty"))
             {
                 case "easy":
-                case "normal":
+                    if (immersiveMessages)
+                    {
+                        if (FatMeterChanged)
+                        {
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                        }
+                    }
                     smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
-                    if (FatMeterChanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                    serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                         smessage,
                         EnumChatType.Notification);
+                    break;
+                case "normal":
+                    if (immersiveMessages)
+                    {
+                        if (FatMeterChanged)
+                        {
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                        }
+                        serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                        smessage,
+                        EnumChatType.Notification);
+                    }
+                    if (debugmode == true)
+                    {
+                        smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
+                        serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                            smessage,
+                            EnumChatType.Notification);
+                    }
                     break;
                 case "hard":
                     if (debugmode == true)
                     {
                         smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
-                        if (FatMeterChanged) serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                        serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                             smessage,
                             EnumChatType.Notification);
                     }
@@ -367,6 +412,11 @@ namespace ExpandedStomach
         }
 
         DateTime lastrecievedsaturation; // put a cooldown on the messages
+        bool to25 = false;
+        bool to50 = false;
+        bool to75 = false;
+        bool to100 = false;
+        bool tomax = false;
 
         public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
         {
@@ -387,24 +437,53 @@ namespace ExpandedStomach
                     //    "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
                     //    EnumChatType.Notification);
                     string message = "";
-                    if (percentfull.between(0.25f, 0.5f))
+                    if (percentfull.between(0f, 0.25f) && !to25)
                     {
-                        //get message from language file
+                        to25 = true;
+                        to50 = false;
+                        to75 = false;
+                        to100 = false;
+                        tomax = false;
+                        message = Lang.Get("expandedstomach:stomachfilling");
+                        messageset = true;
+                    }
+                    else if (percentfull.between(0.25f, 0.5f) && !to50)
+                    {
+                        to25 = false;
+                        to50 = true;
+                        to75 = false;
+                        to100 = false;
+                        tomax = false;
                         message = Lang.Get("expandedstomach:stomachover25");
                         messageset = true;
                     }
-                    else if (percentfull.between(0.5f, 0.75f))
+                    else if (percentfull.between(0.5f, 0.75f) && !to75)
                     {
+                        to25 = false;
+                        to50 = false;
+                        to75 = true;
+                        to100 = false;
+                        tomax = false;
                         message = Lang.Get("expandedstomach:stomachover50");
                         messageset = true;
                     }
-                    else if (percentfull.between(0.75f, 1f))
+                    else if (percentfull.between(0.75f, 1f) && !to100)
                     {
+                        to25 = false;
+                        to50 = false;
+                        to75 = false;
+                        to100 = true;
+                        tomax = false;
                         message = Lang.Get("expandedstomach:stomachover75");
                         messageset = true;
                     }
                     else if (percentfull >= 1f)
                     {
+                        to25 = false;
+                        to50 = false;
+                        to75 = false;
+                        to100 = false;
+                        tomax = true;
                         message = Lang.Get("expandedstomach:stomachover100");
                         messageset = true;
                     }
