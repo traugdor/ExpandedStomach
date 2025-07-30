@@ -59,6 +59,7 @@ The mod adds several commands that can be used to manage and monitor your expand
 - `/es` - Base command for all ExpandedStomach functionality
 
 ### Debug Subcommands
+These commands are only available in single player or when run by a server op.
 
 - `/es debug printInfo [player]` - Displays information about a player's stomach
 - `/es debug setFatLevel [player] [level]` - Sets the fat level of a player (0.0-1.0)
@@ -85,7 +86,7 @@ Developed by traugdor (Discord: @quadmoon).
 
 Special thanks to LadyWYT for her extensive testing efforts, valuable contributions to ideas, and assistance in working through the logic of the code. Her feedback and suggestions were instrumental in making this mod what it is today.
 
-Thanks to Dana for assistance with the configuration system.
+Thanks to Dana (Craluminium2413) for assistance with the configuration system.
 
 Special thanks to Tyron (Vintage Story lead developer) for including Harmony in the base game, which made developing some of the mod systems significantly easier.
 
