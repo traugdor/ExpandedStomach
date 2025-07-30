@@ -253,6 +253,7 @@ namespace ExpandedStomach
                 if(OopsWeDied) OopsWeDied = false;
                 averagestrain = (averagestrain * 6 + strain) / 7;
                 ExpandedStomachCapAverage = (ExpandedStomachCapAverage * 6 + ExpandedStomachCapToday) / 7;
+                ExpandedStomachCapToday = 0;
                 days = today;
                 CalculateFatandStomachSize();
                 CalculateMovementSpeedPenalty();

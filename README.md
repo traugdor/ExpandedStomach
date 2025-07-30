@@ -82,11 +82,12 @@ These commands are only available in single player or when run by a server op.
 
 ## Credits
 
-Developed by traugdor (Discord: @quadmoon).
+Coding: traugdor (Discord: @quadmoon)
+Testing: traugdor, LadyWYT
+Ideas: traugdor, LadyWYT
+Artwork: LadyWYT, Flux Dev
 
-Special thanks to LadyWYT for her extensive testing efforts, valuable contributions to ideas, and assistance in working through the logic of the code. Her feedback and suggestions were instrumental in making this mod what it is today.
-
-Thanks to Dana (Craluminium2413) for assistance with the configuration system.
+Special thanks to Dana (Craluminium2413) for assistance with the configuration system.
 
 Special thanks to Tyron (Vintage Story lead developer) for including Harmony in the base game, which made developing some of the mod systems significantly easier.
 
