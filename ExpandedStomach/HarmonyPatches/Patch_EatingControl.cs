@@ -384,23 +384,23 @@ namespace ExpandedStomach.HarmonyPatches
                 switch (foodCat)
                 {
                     case EnumFoodCategory.Fruit:
-                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.1f);
+                        fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("fruitLevel", fruitsat);
                         break;
                     case EnumFoodCategory.Vegetable:
-                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.1f);
+                        vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * 0.25f);
                         hunger.SetFloat("vegetableLevel", vegetablesat);
                         break;
                     case EnumFoodCategory.Protein:
-                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.1f);
+                        proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("proteinLevel", proteinsat);
                         break;
                     case EnumFoodCategory.Grain:
-                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.1f);
+                        grainsat = Math.Min(maxsat, grainsat + saturationConsumed * 0.25f);
                         hunger.SetFloat("grainLevel", grainsat);
                         break;
                     case EnumFoodCategory.Dairy:
-                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.1f);
+                        dairysat = Math.Min(maxsat, dairysat + saturationConsumed * 0.25f);
                         hunger.SetFloat("dairyLevel", dairysat);
                         break;
                     default:
