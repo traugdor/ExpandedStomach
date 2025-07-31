@@ -304,10 +304,13 @@ namespace ExpandedStomach
             if(newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
             if (difficulty == "easy" || debugmode == true)
             {
-                smessage += " (" + StomachSize.ToString() + " units)";
+                smessage += "\nStomach size is " + StomachSize.ToString() + " units.";
             }
 
             float oldFatMeter = FatMeter;
+            // need to recalculate based on multipliers from config
+            float fatgainMultiplier = entity.Api.World.Config.GetFloat("ExpandedStomach.fatGainRate");
+            float fatlossMultiplier = entity.Api.World.Config.GetFloat("ExpandedStomach.fatLossRate");
 
             if (overeating)
             {
@@ -317,19 +320,19 @@ namespace ExpandedStomach
                     case "easy":
                         if (rand.NextDouble() + 0.25f < strain) // fat increases are skewed by 25% to make them less common
                         {
-                            FatMeter += 0.0025f * (1 + averagestrain);
+                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                     case "normal":
                         if (rand.NextDouble() < strain)
                         {
-                            FatMeter += 0.0025f * (1 + averagestrain);
+                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                     case "hard":
                         if (rand.NextDouble() - 0.25f < strain) // fat increases are skewed by 25% to make them MORE common
                         {
-                            FatMeter += 0.0025f * (1 + averagestrain);
+                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                 }
@@ -341,19 +344,19 @@ namespace ExpandedStomach
                     case "easy":
                         if (rand.NextDouble() - 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them more common
                         {
-                            FatMeter -= 0.004f; //lose fat faster
+                            FatMeter -= 0.004f * fatlossMultiplier; //lose fat faster
                         }
                         break;
                     case "normal":
                         if (rand.NextDouble() < fatlossChance)
                         {
-                            FatMeter -= 0.002f;
+                            FatMeter -= 0.002f * fatlossMultiplier;
                         }
                         break;
                     case "hard":
                         if (rand.NextDouble() + 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them less common
                         {
-                            FatMeter -= 0.002f;
+                            FatMeter -= 0.002f * fatlossMultiplier;
                         }
                         break;
                 }
@@ -378,7 +381,7 @@ namespace ExpandedStomach
                             if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
                         }
                     }
-                    smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
+                    smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
                     serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                         smessage,
                         EnumChatType.Notification);
@@ -403,7 +406,7 @@ namespace ExpandedStomach
                     }
                     if (debugmode == true)
                     {
-                        smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
+                        smessage += "\nYour fat level is now " + (FatMeter*100).ToString() + "%.";
                         serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                             smessage,
                             EnumChatType.Notification);
@@ -412,7 +415,7 @@ namespace ExpandedStomach
                 case "hard":
                     if (debugmode == true)
                     {
-                        smessage += "\nYour fat level is now " + FatMeter.ToString() + " units.";
+                        smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
                         serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                             smessage,
                             EnumChatType.Notification);

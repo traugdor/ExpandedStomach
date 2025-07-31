@@ -157,6 +157,53 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
 
+    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorBodyTemperature), "OnGameTick")]
+    public static class Patch_EntityBehaviorBodyTemperature_get_CurBodyTemperature
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        {
+            var codes = new List<CodeInstruction>(instructions);
+
+            //Step 1: find call to getfloat
+            int originalCallIndex = -1; //set to -1 for now. Check to see if modified later.
+
+            for (int i = 2; i < codes.Count; i++)
+            {
+                if (
+                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 11 &&
+                    codes[i - 1].opcode == OpCodes.Sub &&
+                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 12
+                )
+                {
+                    // Inject after i (the stloc.s 12)
+                    originalCallIndex = i + 1;
+                    break;
+                }
+            }
+
+
+
+            //if we didn't find it, abort with exception. We want the mod to crash and fail.
+            if (originalCallIndex == -1)
+            {
+                throw new Exception("Could not find call to GetFloat. Aborting body temperature patch.");
+            }
+
+            //insert code to custom method
+            var toInject = new List<CodeInstruction>
+            {
+                new CodeInstruction(OpCodes.Ldarg_0),
+                new CodeInstruction(OpCodes.Ldloc_S, 12),
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "GetBodyTemperature")),
+                new CodeInstruction(OpCodes.Stloc_S, 12)
+            };
+
+            codes.InsertRange(originalCallIndex, toInject);
+
+            return codes.AsEnumerable();
+        }
+    }
+
     [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "ReduceSaturation")] // Change to actual method name if different
     [HarmonyPriority(Priority.Last)]
     public static class Patch_EntityBehaviorHunger_ReduceSaturation
@@ -423,6 +470,17 @@ namespace ExpandedStomach.HarmonyPatches
                 byEntity.WatchedAttributes.SetAttribute("hunger", hunger);
                 byEntity.WatchedAttributes.MarkPathDirty("hunger");
             }
+        }
+
+        public static float GetBodyTemperature(EntityBehaviorBodyTemperature __instance, float hereTemp)
+        {
+            float bodyTempOffset = 0f;
+            float fatlevel = 0f;
+            ITreeAttribute stomachtree = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            if(stomachtree != null)
+                fatlevel = stomachtree.GetFloat("fatMeter");
+            bodyTempOffset = (fatlevel) * 10f; //full fat is +20 degrees C and minus 40% movement speed by default
+            return hereTemp + bodyTempOffset;
         }
     }
 
