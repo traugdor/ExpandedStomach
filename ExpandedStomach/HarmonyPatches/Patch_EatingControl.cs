@@ -186,7 +186,7 @@ namespace ExpandedStomach.HarmonyPatches
             //if we didn't find it, abort with exception. We want the mod to crash and fail.
             if (originalCallIndex == -1)
             {
-                throw new Exception("Could not find call to GetFloat. Aborting body temperature patch.");
+                throw new Exception("Could not find location to inject code. Aborting body temperature patch.");
             }
 
             //insert code to custom method
@@ -194,7 +194,7 @@ namespace ExpandedStomach.HarmonyPatches
             {
                 new CodeInstruction(OpCodes.Ldarg_0),
                 new CodeInstruction(OpCodes.Ldloc_S, 12),
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "GetBodyTemperature")),
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "ModifyHereTemperature")),
                 new CodeInstruction(OpCodes.Stloc_S, 12)
             };
 
@@ -472,7 +472,7 @@ namespace ExpandedStomach.HarmonyPatches
             }
         }
 
-        public static float GetBodyTemperature(EntityBehaviorBodyTemperature __instance, float hereTemp)
+        public static float ModifyHereTemperature(EntityBehaviorBodyTemperature __instance, float hereTemp)
         {
             float bodyTempOffset = 0f;
             float fatlevel = 0f;
