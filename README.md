@@ -99,6 +99,7 @@ ExpandedStomach was designed with compatibility in mind and works well with:
 - **Xskills**: Designed to adapt to any changes Xskills makes to the satiety system
 - **Hydrate or Diedrate**: Works alongside the hydration mechanics
 - **Food Mods**: Compatible with any mods that add food items by extending the BlockMeal and CollectibleObject classes
+- **Body Fat by Tasshroom**: Compatible, for those wanting some fat reserves to avoid starvation. Numbers may not be balanced, so you may need to tweak configs for best experience.
 
 ## License
 
