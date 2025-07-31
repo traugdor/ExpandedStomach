@@ -74,6 +74,7 @@ These commands are only available in single player or when run by a server op.
 - Your expanded stomach will slowly transfer nutrients to your normal satiety
 - Overeating regularly will increase your stomach size over time
 - Excessive eating leads to fat gain, which can slow your movement speed
+- Your tolerance to cold weather will increase in proportion to your fat level
 - Maintain a balanced diet to optimize nutrition and minimize negative effects
 
 ## Known Issues
