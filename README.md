@@ -76,7 +76,7 @@ These commands are only available in single player or when run by a server op.
 - Excessive eating leads to fat gain, which can slow your movement speed
 - Your tolerance to cold weather will increase in proportion to your fat level
 - Maintain a balanced diet to optimize nutrition and minimize negative effects
-- Follow vanilla eating behavior to diet and shed unwanted weight(may take some time)
+- Keep satiety below 1000 to diet and shed unwanted weight(may take some time)
 
 ## Known Issues
 
