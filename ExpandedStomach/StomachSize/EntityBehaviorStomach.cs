@@ -383,7 +383,7 @@ namespace ExpandedStomach
                     }
                     smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
                     serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-                        smessage,
+                        smessage.Clean(),
                         EnumChatType.Notification);
                     break;
                 case "normal":
@@ -400,15 +400,18 @@ namespace ExpandedStomach
                             if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
                             if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
                         }
-                        serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-                        smessage,
-                        EnumChatType.Notification);
+                        if(!string.IsNullOrEmpty(smessage.Clean().Trim()))
+                        {
+                            serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
+                            smessage.Clean(),
+                            EnumChatType.Notification);
+                        }
                     }
                     if (debugmode == true)
                     {
                         smessage += "\nYour fat level is now " + (FatMeter*100).ToString() + "%.";
                         serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-                            smessage,
+                            smessage.Clean(),
                             EnumChatType.Notification);
                     }
                     break;
@@ -417,7 +420,7 @@ namespace ExpandedStomach
                     {
                         smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
                         serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
-                            smessage,
+                            smessage.Clean(),
                             EnumChatType.Notification);
                     }
                     break;
@@ -572,5 +575,10 @@ public static class ExtensionMethods
     public static string getDifficulty(this EntityAgent EnAgent)
     {
         return EnAgent.Api.World.Config.GetString("ExpandedStomach.difficulty");
+    }
+
+    public static string Clean(this string value)
+    {
+        return value.Replace("\n", "").Replace("\r", "");
     }
 }
