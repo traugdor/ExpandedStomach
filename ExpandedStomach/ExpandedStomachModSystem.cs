@@ -62,6 +62,9 @@ public class ExpandedStomachModSystem : ModSystem
                 entity.AddBehavior(new EntityBehaviorStomach(entity));
             }
         };
+        api.Event.PlayerLeave += (IServerPlayer player) => { 
+            
+        };
         Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("expandedstomach:hello"));
         api.Event.PlayerNowPlaying += OnPlayerNowPlaying;
         if (!patched)
@@ -90,6 +93,13 @@ public class ExpandedStomachModSystem : ModSystem
         {
             stomachbehavior.CalculateMovementSpeedPenalty();
         }
+    }
+
+    public override void Dispose()
+    {
+        Harmony harmony = new Harmony("expandedstomach");
+        harmony.UnpatchAll("expandedstomach");
+        patched = false;
     }
 
     public void RegisterCommands(ICoreServerAPI api)
