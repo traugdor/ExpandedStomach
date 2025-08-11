@@ -16,6 +16,12 @@ using Vintagestory.GameContent;
 
 namespace ExpandedStomach.HarmonyPatches
 {
+    public static class HarmonyPatchesVars
+    {
+        public static bool BrainFreezeInstalled = false;
+        public static MethodInfo BrainFreezeMethod = null;
+    }
+
     [HarmonyPatch]
     public static class YeahBoiScrapeThatBowl
     {
@@ -112,6 +118,7 @@ namespace ExpandedStomach.HarmonyPatches
                 new CodeInstruction(OpCodes.Ldarg_0), //get this aka __instance
                 new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0) ... again
                 new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
+                new CodeInstruction(OpCodes.Ldarg_2), //load itemStack (argument 2)
                 new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
             };
 
@@ -301,8 +308,12 @@ namespace ExpandedStomach.HarmonyPatches
             }
         }
 
-        public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity)
+        public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity, ItemSlot itemSlot = null)
         {
+            if(HarmonyPatchesVars.BrainFreezeInstalled && byEntity is EntityPlayer player && itemSlot != null)
+            {
+                HarmonyPatchesVars.BrainFreezeMethod.Invoke(null, new object[] { player, itemSlot });
+            }
             float saturation = foodprops.Satiety;
             //calculate saturation we can absorb based on stomach size - capacity
             ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");

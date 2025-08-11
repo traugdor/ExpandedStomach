@@ -1,13 +1,15 @@
-﻿using System;
+﻿using ExpandedStomach.HarmonyPatches;
 using HarmonyLib;
+using System;
+using System.Reflection;
+using System.Text;
 using Vintagestory;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
-using Vintagestory.API.Server;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.Server;
-using System.Text;
 
 namespace ExpandedStomach;
 
@@ -69,6 +71,38 @@ public class ExpandedStomachModSystem : ModSystem
         api.Event.PlayerNowPlaying += OnPlayerNowPlaying;
         if (!patched)
         {
+            // Detect Brainfreeze
+            if (api.ModLoader.IsModEnabled("brainfreeze"))
+            {
+                HarmonyPatchesVars.BrainFreezeInstalled = true;
+                api.Logger.Notification("Brainfreeze detected. Removing TryEatStopTranspiler...");
+                var type = Type.GetType(
+                    "BrainFreeze.Code.HarmonyPatches.FrozenInteractions.Consumption.AddTemperaturePenalty, BrainFreeze"
+                );
+                if (type == null)
+                {
+                    api.Logger.Error("Could not find AddTemperaturePenalty type in Brainfreeze.");
+                    return;
+                }
+
+                HarmonyPatchesVars.BrainFreezeMethod = type.GetMethod(
+                    "ApplyPenalty",
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                );
+
+                var harmonyUnpatcher = new Harmony("expandedstomach.brainfreeze.compatibility.unpatcher");
+
+                MethodInfo target = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
+                if (target == null)
+                {
+                    api.Logger.Error("Could not find method CollectibleObject.tryEatStop.");
+                    return;
+                }
+
+                harmonyUnpatcher.Unpatch(target, HarmonyPatchType.Transpiler, "brainfreeze");
+
+                api.Logger.Notification("TryEatStopTranspiler successfully patched.");
+            }
             var harmony = new Harmony("expandedstomach");
             harmony.PatchAll();
             patched = true;
