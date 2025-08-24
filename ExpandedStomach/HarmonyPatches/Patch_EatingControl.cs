@@ -177,12 +177,12 @@ namespace ExpandedStomach.HarmonyPatches
             for (int i = 2; i < codes.Count; i++)
             {
                 if (
-                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 11 &&
+                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 12 &&
                     codes[i - 1].opcode == OpCodes.Sub &&
-                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 12
+                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 13
                 )
                 {
-                    // Inject after i (the stloc.s 12)
+                    // Inject after i (the stloc.s 13)
                     originalCallIndex = i + 1;
                     break;
                 }
@@ -200,9 +200,9 @@ namespace ExpandedStomach.HarmonyPatches
             var toInject = new List<CodeInstruction>
             {
                 new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldloc_S, 12),
+                new CodeInstruction(OpCodes.Ldloc_S, 13),
                 new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "ModifyHereTemperature")),
-                new CodeInstruction(OpCodes.Stloc_S, 12)
+                new CodeInstruction(OpCodes.Stloc_S, 13)
             };
 
             codes.InsertRange(originalCallIndex, toInject);
