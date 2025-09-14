@@ -169,43 +169,18 @@ namespace ExpandedStomach
             string value = args.Parsers[1].IsMissing ? "" : args.Parsers[1].GetValue().ToString();
             var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
 
-            switch (key.ToLower())
+            var configProperty = config.GetType().GetProperty(key);
+
+            if (configProperty == null)
             {
-                case "hardcoredeath":
-                    config.hardcoreDeath = bool.Parse(value);
-                    break;
-                case "stomachsatslossmultiplier":
-                    config.stomachSatLossMultiplier = float.Parse(value);
-                    break;
-                case "drawbackseverity":
-                    config.drawbackSeverity = float.Parse(value);
-                    break;
-                case "straingainrate":
-                    config.strainGainRate = float.Parse(value);
-                    break;
-                case "strainlossrate":
-                    config.strainLossRate = float.Parse(value);
-                    break;
-                case "fatgainrate":
-                    config.fatGainRate = float.Parse(value);
-                    break;
-                case "fatlossrate":
-                    config.fatLossRate = float.Parse(value);
-                    break;
-                case "difficulty":
-                    config.difficulty = value;
-                    break;
-                case "debugmode":
-                    config.debugMode = bool.Parse(value);
-                    break;
-                case "immersivemessages":
-                    config.immersiveMessages = bool.Parse(value);
-                    break;
-               default:
-                    return TextCommandResult.Error("You did not specify a valid key.");
+                return TextCommandResult.Error($"Invalid config key: {key}");
+            } else
+            {
+                config.GetType().GetProperty(key).SetValue(config, Convert.ChangeType(value, configProperty.PropertyType));
             }
 
             ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            ExpandedStomachModSystem.forceOverwriteConfigFromFile();
             return TextCommandResult.Success($"Config {key} set to {value}");
         }
     }

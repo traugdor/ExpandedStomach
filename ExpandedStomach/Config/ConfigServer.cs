@@ -48,6 +48,14 @@ namespace ExpandedStomach
         public bool immersiveMessages { get; set; } = true;
         [JsonProperty(Order = 17)]
         public bool debugMode { get; set; } = false;
+        [JsonProperty(Order = 18)]
+        public string barDescription => "Change how the bar appears when using the mod. Enabling the bar turns off immersive messages. (Requires a restart)";
+        [JsonProperty(Order = 19)]
+        public bool bar { get; set; } = true;
+        [JsonProperty(Order = 20)]
+        public bool audoHideHungerBar { get; set; } = true;
+        [JsonProperty(Order = 21)]
+        public float barVerticalOffset { get; set; } = 0f;
 
         public ConfigServer(ICoreAPI api, ConfigServer previousConfig = null)
         {
@@ -64,6 +72,9 @@ namespace ExpandedStomach
             difficulty = previousConfig.difficulty;
             immersiveMessages = previousConfig.immersiveMessages;
             debugMode = previousConfig.debugMode;
+            bar = previousConfig.bar;
+            audoHideHungerBar = previousConfig.audoHideHungerBar;
+            barVerticalOffset = previousConfig.barVerticalOffset;
         }
     }
 }

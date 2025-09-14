@@ -282,7 +282,7 @@ namespace ExpandedStomach.HarmonyPatches
                 return false;
             }
 
-            float satLoss = satLossMultiplier * 10f;
+            float satLoss = satLossMultiplier * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
             satLoss *= (1 + (prevStomachSat / 11000f));
             prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
 

@@ -466,13 +466,15 @@ namespace ExpandedStomach
         {
             //update last time player ate
             float percentfull = ExpandedStomachMeter / StomachSize;
+            bool shouldDisplayMessages = shouldMessagesDisplay(entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"),
+                                                               entity.Api.World.Config.GetBool("ExpandedStomach.bar"));
             if (percentfull <= 0 ) return;
             if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
                 //get stomach sat and size and calculate percentage
                 
-                if (entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages") && saturation >= 0)
+                if (shouldDisplayMessages && saturation >= 0)
                 {
                     bool messageset = false;
                     var player = entity as EntityPlayer;
@@ -553,6 +555,11 @@ namespace ExpandedStomach
         }
 
         public override string PropertyName() => "expandedStomach";
+
+        public bool shouldMessagesDisplay(bool messages, bool barhud)
+        {
+            return (messages && !barhud);
+        }
     }
 }
 public static class ExtensionMethods

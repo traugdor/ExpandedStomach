@@ -1,4 +1,5 @@
 ﻿using ExpandedStomach.HarmonyPatches;
+using ExpandedStomach.Hud;
 using HarmonyLib;
 using System;
 using System.Reflection;
@@ -20,9 +21,13 @@ public class ExpandedStomachModSystem : ModSystem
     public static ILogger Logger;
     private static bool patched = false;
 
-    private static ICoreAPI       coreapi;
-    private static ICoreServerAPI serverapi;
-    private static ICoreClientAPI clientapi;
+    public static ICoreAPI       coreapi;
+    public static ICoreServerAPI serverapi;
+    public static ICoreClientAPI clientapi;
+
+    public static bool IsHODLoaded { get; private set; }
+    public static  bool IsVigorLoaded { get; private set; }
+    public HudESBar hudESBar;
 
     // Called on server and client
     // Useful for registering block/entity classes on both sides
@@ -50,8 +55,29 @@ public class ExpandedStomachModSystem : ModSystem
                 api.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
                 api.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
                 api.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
+                api.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
+                api.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
+                api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
                 break;
         }
+    }
+
+    public static void forceOverwriteConfigFromFile()
+    {
+        sConfig = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(serverapi, ConfigServer.configName);
+        serverapi.World.Config.SetBool("ExpandedStomach.hardcoreDeath", sConfig.hardcoreDeath);
+        serverapi.World.Config.SetFloat("ExpandedStomach.stomachSatLossMultiplier", sConfig.stomachSatLossMultiplier);
+        serverapi.World.Config.SetFloat("ExpandedStomach.drawbackSeverity", sConfig.drawbackSeverity);
+        serverapi.World.Config.SetFloat("ExpandedStomach.strainGainRate", sConfig.strainGainRate);
+        serverapi.World.Config.SetFloat("ExpandedStomach.strainLossRate", sConfig.strainLossRate);
+        serverapi.World.Config.SetFloat("ExpandedStomach.fatGainRate", sConfig.fatGainRate);
+        serverapi.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
+        serverapi.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
+        serverapi.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
+        serverapi.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
+        serverapi.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
+        serverapi.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
+        serverapi.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -115,7 +141,12 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         clientapi = api;
-        Mod.Logger.Notification("Hello from template mod client side: " + Lang.Get("expandedstomach:hello"));
+        IsHODLoaded = api.ModLoader.IsModEnabled("hydrateordiedrate");
+        IsVigorLoaded = api.ModLoader.IsModEnabled("vigor");
+        if (IsHODLoaded) Mod.Logger.Notification("Hydrate or Die Rate detected. Adjusting bar position.");
+        if (IsVigorLoaded) Mod.Logger.Notification("Vigor detected. Adjusting bar position.");
+        hudESBar = new HudESBar(api);
+        Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
     }
 
     private void OnPlayerNowPlaying(IServerPlayer thePlayer)
