@@ -43,13 +43,13 @@ namespace ExpandedStomach
         [JsonProperty(Order = 14)]
         public string difficulty { get; set; } = "normal";
         [JsonProperty(Order = 15)]
-        public string imDescription => "Toggle on/off the immersive messages that appear when using the mod. (Requires a restart)";
+        public string imDescription => "Toggle on/off the immersive messages that appear when using the mod.";
         [JsonProperty(Order = 16)]
         public bool immersiveMessages { get; set; } = true;
         [JsonProperty(Order = 17)]
         public bool debugMode { get; set; } = false;
         [JsonProperty(Order = 18)]
-        public string barDescription => "Change how the bar appears when using the mod. Enabling the bar turns off immersive messages. (Requires a restart)";
+        public string barDescription => "Change how the bar appears when using the mod. Enabling the bar turns off immersive messages.";
         [JsonProperty(Order = 19)]
         public bool bar { get; set; } = true;
         [JsonProperty(Order = 20)]
