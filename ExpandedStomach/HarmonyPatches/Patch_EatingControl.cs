@@ -2,9 +2,11 @@
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading.Tasks;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -260,10 +262,10 @@ namespace ExpandedStomach.HarmonyPatches
 
             codes.InsertRange(insertionPoint, injected);
 
-            foreach (var instr in codes.AsEnumerable())
-            {
-                ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
-            }
+            //foreach (var instr in codes.AsEnumerable())
+            //{
+            //    ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
+            //}
 
             return codes.AsEnumerable();
         }
@@ -273,6 +275,7 @@ namespace ExpandedStomach.HarmonyPatches
         {
             var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             if (stomach == null) { 
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find stomach attribute. No saturation loss.");
                 return false; 
             }
 
@@ -283,6 +286,8 @@ namespace ExpandedStomach.HarmonyPatches
             }
 
             float satLoss = satLossMultiplier * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
+            var config = ExpandedStomachModSystem.sConfig;
+            //satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
             satLoss *= (1 + (prevStomachSat / 11000f));
             prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
 
@@ -291,6 +296,8 @@ namespace ExpandedStomach.HarmonyPatches
 
             var sprintCounterField = typeof(EntityBehaviorHunger).GetField("sprintCounter", BindingFlags.Instance | BindingFlags.NonPublic);
             sprintCounterField?.SetValue(__instance, 0);
+
+            ExpandedStomachModSystem.Logger.Debug($"ExpandedStomach: {satLoss} saturation was lost.");
 
             return true;
         }

@@ -10,6 +10,7 @@ using Vintagestory.ServerMods.NoObf;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 
 namespace ExpandedStomach
@@ -21,6 +22,11 @@ namespace ExpandedStomach
         long serverListenerSlowId;
 
         private static readonly Random rand = new Random();
+
+        public override void OnEntityRevive()
+        {
+            base.OnEntityRevive();
+        }
 
         public ITreeAttribute StomachAttributes
         {

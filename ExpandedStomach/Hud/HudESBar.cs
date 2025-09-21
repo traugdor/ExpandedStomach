@@ -115,7 +115,8 @@ namespace ExpandedStomach.Hud
         private void OnVisualUpdate(float dt)
         {
             //try to update config values from internal config settings
-            var config = ExpandedStomachModSystem.serverapi.World.Config;
+            var config = ExpandedStomachModSystem.coreapi?.World?.Config;
+            if (config == null) return;
             _autoHideESBar = config.GetBool("ExpandedStomach.audoHideHungerBar");
             _hideESBarOnEmpty = config.GetBool("ExpandedStomach.audoHideHungerBar");
             _showBar = config.GetBool("ExpandedStomach.bar");
