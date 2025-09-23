@@ -274,7 +274,8 @@ namespace ExpandedStomach
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
 
-            bool overeating = strain > averagestrain;
+            bool overeating = strain > laststrain;
+            bool maintaining = (strain < laststrain || strain == laststrain) && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
@@ -452,10 +453,17 @@ namespace ExpandedStomach
             {
                 strain += newbuildrate * (proximity - 0.5f) / 0.1f; // increases faster the closer to the limit
             }
+            if (proximity < 0.5f && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
+            {
+                strain -= newdecayrate * (0.5f - proximity); // decreases faster the less food you have in the stomach
+            }
+            if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
+            {
+                strain -= newdecayrate * 0.5f; // strain decreases by half
+            }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {
-                proximity = 0.5f;
-                strain -= newdecayrate * (1f - proximity);
+                strain -= newdecayrate; // strain decreases by full amount
                 // lower fat level?
             }
             strain = Math.Clamp(strain, 0f, 1f);
