@@ -36,52 +36,49 @@ public class ExpandedStomachModSystem : ModSystem
         Api = api;
         Logger = Mod.Logger;
         coreapi = api;
+        setupConfig(api);
     }
 
     public override void StartPre(ICoreAPI api)
     {
         api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
-        switch (api.Side)
-        {
-            case EnumAppSide.Server:
-                sConfig = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(api, ConfigServer.configName);
-                api.World.Config.SetBool("ExpandedStomach.hardcoreDeath", sConfig.hardcoreDeath);
-                api.World.Config.SetFloat("ExpandedStomach.stomachSatLossMultiplier", sConfig.stomachSatLossMultiplier);
-                api.World.Config.SetFloat("ExpandedStomach.drawbackSeverity", sConfig.drawbackSeverity);
-                api.World.Config.SetFloat("ExpandedStomach.strainGainRate", sConfig.strainGainRate);
-                api.World.Config.SetFloat("ExpandedStomach.strainLossRate", sConfig.strainLossRate);
-                api.World.Config.SetFloat("ExpandedStomach.fatGainRate", sConfig.fatGainRate);
-                api.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
-                api.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
-                api.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
-                api.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
-                api.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
-                api.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
-                api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
-                break;
-        }
     }
 
-    public static void forceOverwriteConfigFromFile()
+    public static void forceOverwriteConfigFromFile(ICoreAPI api = null)
     {
-        sConfig = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(serverapi, ConfigServer.configName);
-        serverapi.World.Config.SetBool("ExpandedStomach.hardcoreDeath", sConfig.hardcoreDeath);
-        serverapi.World.Config.SetFloat("ExpandedStomach.stomachSatLossMultiplier", sConfig.stomachSatLossMultiplier);
-        serverapi.World.Config.SetFloat("ExpandedStomach.drawbackSeverity", sConfig.drawbackSeverity);
-        serverapi.World.Config.SetFloat("ExpandedStomach.strainGainRate", sConfig.strainGainRate);
-        serverapi.World.Config.SetFloat("ExpandedStomach.strainLossRate", sConfig.strainLossRate);
-        serverapi.World.Config.SetFloat("ExpandedStomach.fatGainRate", sConfig.fatGainRate);
-        serverapi.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
-        serverapi.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
-        serverapi.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
-        serverapi.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
-        serverapi.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
-        serverapi.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
-        serverapi.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
+        if (api == null)
+        {
+            api = serverapi;
+            setupConfig(api);
+            api = clientapi;
+            setupConfig(api);
+            api = coreapi;
+            setupConfig(api);
+        }
+        else setupConfig(api);
+    }
+
+    public static void setupConfig(ICoreAPI api)
+    {
+        sConfig = ExpandedStomach.ModConfig.ReadConfig<ConfigServer>(api, ConfigServer.configName);
+        api.World.Config.SetBool("ExpandedStomach.hardcoreDeath", sConfig.hardcoreDeath);
+        api.World.Config.SetFloat("ExpandedStomach.stomachSatLossMultiplier", sConfig.stomachSatLossMultiplier);
+        api.World.Config.SetFloat("ExpandedStomach.drawbackSeverity", sConfig.drawbackSeverity);
+        api.World.Config.SetFloat("ExpandedStomach.strainGainRate", sConfig.strainGainRate);
+        api.World.Config.SetFloat("ExpandedStomach.strainLossRate", sConfig.strainLossRate);
+        api.World.Config.SetFloat("ExpandedStomach.fatGainRate", sConfig.fatGainRate);
+        api.World.Config.SetFloat("ExpandedStomach.fatLossRate", sConfig.fatLossRate);
+        api.World.Config.SetString("ExpandedStomach.difficulty", sConfig.difficulty);
+        api.World.Config.SetBool("ExpandedStomach.immersiveMessages", sConfig.immersiveMessages);
+        api.World.Config.SetBool("ExpandedStomach.debugMode", sConfig.debugMode);
+        api.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
+        api.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
+        api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
     {
+        setupConfig(api);
         api.Event.PlayerNowPlaying += (IServerPlayer player) =>
         {
             var entity = player.Entity;
@@ -140,6 +137,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public override void StartClientSide(ICoreClientAPI api)
     {
+        setupConfig(api);
         clientapi = api;
         IsHODLoaded = api.ModLoader.IsModEnabled("hydrateordiedrate");
         IsVigorLoaded = api.ModLoader.IsModEnabled("vigor");

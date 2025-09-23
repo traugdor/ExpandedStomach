@@ -260,10 +260,10 @@ namespace ExpandedStomach.HarmonyPatches
 
             codes.InsertRange(insertionPoint, injected);
 
-            foreach (var instr in codes.AsEnumerable())
-            {
-                ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
-            }
+            //foreach (var instr in codes.AsEnumerable())
+            //{
+            //    ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
+            //}
 
             return codes.AsEnumerable();
         }
