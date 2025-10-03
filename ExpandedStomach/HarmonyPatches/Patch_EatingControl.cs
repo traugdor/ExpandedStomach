@@ -1,5 +1,6 @@
 ﻿using ExpandedStomach;
 using HarmonyLib;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -23,6 +24,19 @@ namespace ExpandedStomach.HarmonyPatches
         public static bool BrainFreezeInstalled = false;
         public static MethodInfo BrainFreezeMethod = null;
     }
+
+    //----------------------------------------------------------------------------
+    [HarmonyPatch(typeof(EntityBehaviorHunger), "SlowTick")]
+    public class Patch_EntityBehaviorHunger_SlowTick
+    {
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        {
+            var codes = new List<CodeInstruction>(instructions);
+
+            return codes.AsEnumerable();
+        }
+    }
+
 
     [HarmonyPatch]
     public static class YeahBoiScrapeThatBowl
@@ -83,6 +97,18 @@ namespace ExpandedStomach.HarmonyPatches
     [HarmonyPriority(100)]
     public static class Patch_CollectibleObject_tryEatStop
     {
+        static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        {
+            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+
+            float satietyBeforeEating = hunger.GetFloat("currentsaturation");
+            stomach.SetFloat("satietyBeforeEating", satietyBeforeEating);
+            byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+            return true;
+        }
+
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il) {
             var codes = new List<CodeInstruction>(instructions);
 
@@ -287,7 +313,7 @@ namespace ExpandedStomach.HarmonyPatches
 
             float satLoss = satLossMultiplier * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
             var config = ExpandedStomachModSystem.sConfig;
-            //satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
+            satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
             satLoss *= (1 + (prevStomachSat / 11000f));
             prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
 
@@ -322,34 +348,37 @@ namespace ExpandedStomach.HarmonyPatches
                 HarmonyPatchesVars.BrainFreezeMethod.Invoke(null, new object[] { player, itemSlot });
             }
             float saturation = foodprops.Satiety;
+            //get difference between how much we could hold and how much we want to eat
+            float diff = 0f;
+            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            var satdiff = hunger.GetFloat("maxsaturation") - stomach.GetFloat("satietyBeforeEating");
+            diff = saturation - satdiff;
+            if (diff < 0f) { diff = 0f; }
             //calculate saturation we can absorb based on stomach size - capacity
-            ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             int stomachsize = stomach.GetInt("stomachSize");
             float stomachcapacity = stomach.GetFloat("expandedStomachMeter");
             float saturationAvailable = (float)stomachsize - stomachcapacity;
-
-            var curSat = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("currentsaturation");
-            var maxsat = byEntity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("maxsaturation");
             
-            if(curSat >= maxsat)
+            if(diff > 0f)
             {
                 //allow to eat into expanded stomach
-                if (saturationAvailable > saturation)
+                if (saturationAvailable > diff)
                 {
                     //we ate it all. add saturation to stomachcap and write it back
-                    stomachcapacity += saturation;
+                    stomachcapacity += diff;
                     stomach.SetFloat("expandedStomachMeter", stomachcapacity);
                     byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
                 else
                 {
                     //we didn't eat it all. stomachcap = stomachsize
-                    saturation = ((float)stomachsize - stomachcapacity);
+                    diff = ((float)stomachsize - stomachcapacity);
                     stomachcapacity = (float)stomachsize;
                     stomach.SetFloat("expandedStomachMeter", stomachcapacity);
                     byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
                 }
-                GetNutrientsFromFoodType(foodprops.FoodCategory, saturation, byEntity);
+                GetNutrientsFromFoodType(foodprops.FoodCategory, diff, byEntity);
             }
             byEntity.ReceiveSaturation(0, foodprops.FoodCategory);
         }

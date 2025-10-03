@@ -21,6 +21,11 @@ namespace ExpandedStomach
         long serverListenerId;
         long serverListenerSlowId;
 
+        public bool starvation = false;
+        public DateTime StarvationLastEatTime = DateTime.Now;
+        public DateTime StarvationCurrentTime = DateTime.Now;
+        public float StarvationBankedDamage = 0f;
+
         private static readonly Random rand = new Random();
 
         public override void OnEntityRevive()
@@ -34,6 +39,16 @@ namespace ExpandedStomach
             set
             {
                 entity.WatchedAttributes.SetAttribute("expandedStomach", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
+        public float satietyBeforeEating
+        {
+            get => StomachAttributes.GetFloat("satietyBeforeEating", 0f);
+            set
+            {
+                StomachAttributes.SetFloat("satietyBeforeEating", value);
                 entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
@@ -239,6 +254,7 @@ namespace ExpandedStomach
                 strain = 0;
                 laststrain = 0;
                 averagestrain = 0;
+                satietyBeforeEating = 0;
             }
             if (!entity.WatchedAttributes.HasAttribute("dayCountOffset"))
             {
@@ -281,7 +297,10 @@ namespace ExpandedStomach
 
             string smessage = "";
             bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
-            int increasedifference = (int)ExpandedStomachCapAverage * 2 - StomachSize;
+            int increasedifference = GameMath.Clamp((int)ExpandedStomachCapAverage * 2 - StomachSize, -100, 100);
+            // standard length of a month = 9 days
+            int daysPerMonth = entity.World.Calendar.DaysPerMonth;
+            if (daysPerMonth > 9) increasedifference = increasedifference * 9 / daysPerMonth;
             string difficulty = entity.Api.World.Config.GetString("ExpandedStomach.difficulty");
             switch (difficulty)
             {
