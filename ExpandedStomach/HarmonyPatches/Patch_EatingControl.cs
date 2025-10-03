@@ -25,17 +25,17 @@ namespace ExpandedStomach.HarmonyPatches
         public static MethodInfo BrainFreezeMethod = null;
     }
 
-    //----------------------------------------------------------------------------
-    [HarmonyPatch(typeof(EntityBehaviorHunger), "SlowTick")]
-    public class Patch_EntityBehaviorHunger_SlowTick
-    {
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
-        {
-            var codes = new List<CodeInstruction>(instructions);
+    ////----------------------------------------------------------------------------
+    //[HarmonyPatch(typeof(EntityBehaviorHunger), "SlowTick")]
+    //public class Patch_EntityBehaviorHunger_SlowTick
+    //{
+    //    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+    //    {
+    //        var codes = new List<CodeInstruction>(instructions);
 
-            return codes.AsEnumerable();
-        }
-    }
+    //        return codes.AsEnumerable();
+    //    }
+    //}
 
 
     [HarmonyPatch]
