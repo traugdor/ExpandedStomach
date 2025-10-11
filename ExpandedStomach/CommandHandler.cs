@@ -15,8 +15,15 @@ namespace ExpandedStomach
         private ICoreServerAPI serverAPI;
         private ICoreAPI API;
         private ICoreClientAPI clientAPI;
-        internal CommandHandlers(ICoreServerAPI serverapi, ICoreClientAPI clientapi, ICoreAPI api)
+        private bool isClient = false;
+        private bool isServer = false;
+        private bool isBoth = false;
+
+        internal CommandHandlers(ICoreServerAPI serverapi = null, ICoreClientAPI clientapi = null, ICoreAPI api = null)
         {
+            if (serverapi != null) isServer = true;
+            if (clientapi != null) isClient = true;
+            if (api != null) isBoth = true;
             serverAPI = serverapi;
             API = api;
             clientAPI = clientapi;
@@ -178,8 +185,12 @@ namespace ExpandedStomach
             {
                 config.GetType().GetProperty(key).SetValue(config, Convert.ChangeType(value, configProperty.PropertyType));
             }
-
-            ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            if (isBoth)
+                ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            if (isServer)
+                ModConfig.WriteConfig<ConfigServer>(serverAPI, ConfigServer.configName, config);
+            if (isClient)
+                ModConfig.WriteConfig<ConfigServer>(clientAPI, ConfigServer.configName, config);
             ExpandedStomachModSystem.forceOverwriteConfigFromFile();
             return TextCommandResult.Success($"Config {key} set to {value}");
         }

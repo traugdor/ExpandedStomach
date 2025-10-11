@@ -291,7 +291,7 @@ namespace ExpandedStomach
             var serverPlayer = player?.Player as IServerPlayer;
 
             bool overeating = strain > laststrain;
-            bool maintaining = (strain < laststrain || strain == laststrain) && ExpandedStomachWasActive;
+            bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
@@ -479,6 +479,7 @@ namespace ExpandedStomach
             if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
             {
                 strain -= newdecayrate * 0.5f; // strain decreases by half
+                strain = Math.Clamp(strain, 0.5f, 1f); // don't let it go below 0.5 during maintenance mode
             }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {

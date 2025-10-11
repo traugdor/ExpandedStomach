@@ -144,6 +144,8 @@ public class ExpandedStomachModSystem : ModSystem
         if (IsHODLoaded) Mod.Logger.Notification("Hydrate or Die Rate detected. Adjusting bar position.");
         if (IsVigorLoaded) Mod.Logger.Notification("Vigor detected. Adjusting bar position.");
         hudESBar = new HudESBar(api);
+        Mod.Logger.Notification("Registering client-side commands!");
+        RegisterCommandsClient(api);
         Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
     }
 
@@ -167,7 +169,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public void RegisterCommands(ICoreServerAPI api)
     {
-        CommandHandlers ch = new CommandHandlers(api, clientapi, coreapi);
+        CommandHandlers ch = new CommandHandlers(api, null, null);
         string[] codes = Vintagestory.API.Server.Privilege.AllCodes();
         var parsers = api.ChatCommands.Parsers;
         api.ChatCommands
@@ -202,8 +204,28 @@ public class ExpandedStomachModSystem : ModSystem
                     .HandleWith(ch.PrintConfig)
                 .EndSubCommand()
                 .BeginSubCommand("setConfig")
-                    .WithDescription("Sets a config value.")
+                    .WithDescription("Sets a config value. Do not use for adjusting the stomach bar options. Use client commands instead.")
                     .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("key"),parsers.OptionalWord("value")})
+                    .HandleWith(ch.SetConfig)
+                .EndSubCommand()
+            .EndSubCommand();
+    }
+
+    public void RegisterCommandsClient(ICoreClientAPI api)
+    {
+        CommandHandlers ch = new CommandHandlers(null, api, null);
+        string[] codes = Vintagestory.API.Server.Privilege.AllCodes();
+        var parsers = api.ChatCommands.Parsers;
+        api.ChatCommands
+            .Create("ES")
+            .RequiresPrivilege(Privilege.root) //only run if you are server OP
+            .RequiresPlayer()
+            .WithDescription("Expanded Stomach root command. Use `/help es` for more information")
+            .BeginSubCommand("debug")
+                .WithDescription("Debug commands for Expanded Stomach mod.")
+                .BeginSubCommand("setConfig")
+                    .WithDescription("Sets a config value. Use for adjusting the stomach bar options.")
+                    .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("key"), parsers.OptionalWord("value") })
                     .HandleWith(ch.SetConfig)
                 .EndSubCommand()
             .EndSubCommand();
