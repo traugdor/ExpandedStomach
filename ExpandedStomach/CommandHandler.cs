@@ -45,7 +45,13 @@ namespace ExpandedStomach
 
         internal TextCommandResult PrintConfig(TextCommandCallingArgs args)
         {
-            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            ConfigServer config = null;
+            if (isClient)
+                config = ModConfig.ReadConfig<ConfigServer>(clientAPI, ConfigServer.configName);
+            if (isServer)
+                config = ModConfig.ReadConfig<ConfigServer>(serverAPI, ConfigServer.configName);
+            if (isBoth)
+                config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
             string output = "";
             foreach (var prop in config.GetType().GetProperties())
             {
@@ -148,6 +154,8 @@ namespace ExpandedStomach
         internal TextCommandResult PrintInfo(TextCommandCallingArgs args)
         {
             string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+            if (playername == "")
+                playername = args.Caller.Player.PlayerName;
             var allplayers = serverAPI.World.AllOnlinePlayers;
             bool playerFound = false;
             IPlayer thePlayer = null;
@@ -174,7 +182,10 @@ namespace ExpandedStomach
         {
             string key = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
             string value = args.Parsers[1].IsMissing ? "" : args.Parsers[1].GetValue().ToString();
-            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            ConfigServer config = null;
+            if (isBoth) config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            if (isServer) config = ModConfig.ReadConfig<ConfigServer>(serverAPI, ConfigServer.configName);
+            if (isClient) config = ModConfig.ReadConfig<ConfigServer>(clientAPI, ConfigServer.configName);
 
             var configProperty = config.GetType().GetProperty(key);
 
