@@ -20,11 +20,13 @@ namespace ExpandedStomach
 
         long serverListenerId;
         long serverListenerSlowId;
+        long stuffedListenerId = 0;
 
         public bool starvation = false;
         public DateTime StarvationLastEatTime = DateTime.Now;
         public DateTime StarvationCurrentTime = DateTime.Now;
         public float StarvationBankedDamage = 0f;
+        public bool stuffed = false;
 
         private static readonly Random rand = new Random();
 
@@ -226,7 +228,12 @@ namespace ExpandedStomach
         internal void CalculateMovementSpeedPenalty()
         {
             //cap to 50% movement penalty
-            MovementPenalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
+            float penalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
+            if (stuffed)
+            {
+                penalty = 0.1f + 0.9f * penalty;
+            }
+            MovementPenalty = penalty;
         }
 
         private void UpdateWalkSpeed()
@@ -503,6 +510,8 @@ namespace ExpandedStomach
             bool shouldDisplayMessages = shouldMessagesDisplay(entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"),
                                                                entity.Api.World.Config.GetBool("ExpandedStomach.bar"));
             if (percentfull <= 0 ) return;
+            if (percentfull >= 1 ) 
+                TriggerStuffedStatus(true);
             if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
@@ -576,6 +585,21 @@ namespace ExpandedStomach
             }
         }
 
+        private void TriggerStuffedStatus(bool isStuffed = false)
+        {
+            if (stuffedListenerId == 0 && isStuffed)
+                stuffedListenerId = entity.World.RegisterGameTickListener(CancelStuffedPenalty, 60000, 200); //1 min
+            stuffed = isStuffed;
+            CalculateMovementSpeedPenalty();
+        }
+
+        private void CancelStuffedPenalty(float obj)
+        {
+            stuffed = false;
+            CalculateMovementSpeedPenalty();
+            entity.World.UnregisterGameTickListener(stuffedListenerId);
+            stuffedListenerId = 0;
+        }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
