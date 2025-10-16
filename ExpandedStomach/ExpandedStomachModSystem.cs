@@ -74,6 +74,8 @@ public class ExpandedStomachModSystem : ModSystem
         api.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
         api.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
         api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
+        api.World.Config.SetInt("ExpandedStomach.overStuffedTimeDelay", sConfig.overStuffedTimeDelay);
+        api.World.Config.SetFloat("ExpandedStomach.overStuffedThreshold", sConfig.overStuffedThreshold);
     }
 
     public override void StartServerSide(ICoreServerAPI api)

@@ -27,6 +27,8 @@ namespace ExpandedStomach
         public DateTime StarvationCurrentTime = DateTime.Now;
         public float StarvationBankedDamage = 0f;
         public bool stuffed = false;
+        public int overStuffedTimeDelay;
+        public float overStuffedThreshold;
 
         private static readonly Random rand = new Random();
 
@@ -270,6 +272,7 @@ namespace ExpandedStomach
             }
             CalculateMovementSpeedPenalty();
             debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
+            overStuffedTimeDelay = entity.World.Config.GetInt("ExpandedStomach.overStuffedTimeDelay");
         }
 
         public void ServerTickSUPERSlow(float deltaTime)
@@ -507,10 +510,11 @@ namespace ExpandedStomach
         {
             //update last time player ate
             float percentfull = ExpandedStomachMeter / StomachSize;
+            overStuffedThreshold = entity.Api.World.Config.GetFloat("ExpandedStomach.overStuffedThreshold");
             bool shouldDisplayMessages = shouldMessagesDisplay(entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"),
                                                                entity.Api.World.Config.GetBool("ExpandedStomach.bar"));
             if (percentfull <= 0 ) return;
-            if (percentfull >= 1 ) 
+            if (percentfull >= overStuffedThreshold)
                 TriggerStuffedStatus(true);
             if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
@@ -588,17 +592,36 @@ namespace ExpandedStomach
         private void TriggerStuffedStatus(bool isStuffed = false)
         {
             if (stuffedListenerId == 0 && isStuffed)
-                stuffedListenerId = entity.World.RegisterGameTickListener(CancelStuffedPenalty, 60000, 200); //1 min
+                stuffedListenerId = entity.World.RegisterGameTickListener(StartCancelOverStuffedTimeDelay, overStuffedTimeDelay, 200); //1 min
             stuffed = isStuffed;
             CalculateMovementSpeedPenalty();
         }
 
-        private void CancelStuffedPenalty(float obj)
+        private void StartCancelOverStuffedTimeDelay(float obj)
         {
-            stuffed = false;
-            CalculateMovementSpeedPenalty();
-            entity.World.UnregisterGameTickListener(stuffedListenerId);
-            stuffedListenerId = 0;
+            if (ExpandedStomachMeter / StomachSize < overStuffedThreshold)
+            {
+                stuffed = false;
+                CalculateMovementSpeedPenalty();
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = 0;
+            }
+            else
+            {
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = entity.World.RegisterGameTickListener(MonitorStomachForOverStuffed, 2000, 0); //2 seconds
+            } 
+        }
+
+        private void MonitorStomachForOverStuffed(float obj)
+        {
+            if (ExpandedStomachMeter / StomachSize < overStuffedThreshold)
+            {
+                stuffed = false;
+                CalculateMovementSpeedPenalty();
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = 0;
+            }
         }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
@@ -609,6 +632,10 @@ namespace ExpandedStomach
             {
                 entity.World.UnregisterGameTickListener(serverListenerId);
                 entity.World.UnregisterGameTickListener(serverListenerSlowId);
+            }
+            if (stuffedListenerId != 0)
+            {
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
             }
         }
 
