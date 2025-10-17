@@ -56,10 +56,13 @@ namespace ExpandedStomach
         public bool audoHideHungerBar { get; set; } = true;
         [JsonProperty(Order = 21)]
         public float barVerticalOffset { get; set; } = 0f;
+        [JsonProperty(Order = 23)]
         public string overStuffedDescription => "Delay in milliseconds before the movement speed debuff from being overstuffed fades. (default 1 minute)";
-        [JsonProperty(Order = 22)]
+        [JsonProperty(Order = 24)]
         public int overStuffedTimeDelay { get; set; } = 60000;
+        [JsonProperty(Order = 25)]
         public string overstuffedthdescription => "Percentage of stomach saturation needed to be overstuffed. (default 90%)";
+        [JsonProperty(Order = 26)]
         public float overStuffedThreshold { get; set; } = 0.9f;
 
         public ConfigServer(ICoreAPI api, ConfigServer previousConfig = null)

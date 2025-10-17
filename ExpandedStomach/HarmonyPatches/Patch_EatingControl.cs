@@ -15,6 +15,7 @@ using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.Common;
 using Vintagestory.GameContent;
 
 namespace ExpandedStomach.HarmonyPatches
@@ -90,6 +91,59 @@ namespace ExpandedStomach.HarmonyPatches
     }
     //----------------------------------------------------------------------------
 
+    [HarmonyPatch]
+    public static class DrinkUpMyFriend
+    {
+        static MethodBase TargetMethod()
+        {
+            return AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
+        }
+
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        {
+            //hijack call to ReceiveSaturation and substitute it with code for eating food item
+            //because drinking consumes the full amount available.
+            var codes = new List<CodeInstruction>(instructions);
+
+            var RecieveSaturationIndex = -1; //set to -1 for now. Check to see if modified later.
+            var ldNullIndex = -1; //set to -1 for now. Check to see if modified later.
+
+            //let's find the call to RecieveSaturation
+            for (int i = 0; i < codes.Count - 2; i++) // subtract 2 because we need to check the next instruction as well.
+            {
+                if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
+                    codes[i].operand.ToString().Contains("ReceiveSaturation")) && //and it's a call to ReceiveSaturation
+                    codes[i + 1].opcode == OpCodes.Ldnull) // and the very next instruction is Ldnull
+                {
+                    // then we found it!
+                    RecieveSaturationIndex = i;
+                    ldNullIndex = i + 1;
+                    break;
+                }
+            }
+
+            //if we didn't find it, abort with exception. We want the mod to crash and fail.
+            if (RecieveSaturationIndex == -1 || ldNullIndex == -1)
+            {
+                throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
+            }
+
+            var toInject = new List<CodeInstruction>
+            {
+                new CodeInstruction(OpCodes.Ldarg_0), //get this aka __instance
+                new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0) ... again
+                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
+                new CodeInstruction(OpCodes.Ldarg_2), //load itemStack (argument 2)
+                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
+            };
+
+            codes.InsertRange(RecieveSaturationIndex + 3, toInject); //insert the code before receivesaturation
+
+            return codes.AsEnumerable();
+        }
+
+    }
+
     //----------------------------------------------------------------------------
 
     // Patch for regular items (meat, bread, berries, etc.)
@@ -136,9 +190,6 @@ namespace ExpandedStomach.HarmonyPatches
             {
                 throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
             }
-
-            var foodCat = AccessTools.Field(typeof(FoodNutritionProperties), "FoodCategory"); //save foodCat -- Meow!
-            var satiety = AccessTools.Field(typeof(FoodNutritionProperties), "Satiety");
 
             //now it's time to inject the call to GetNutrientsFromFoodType
             var toInject = new List<CodeInstruction>
