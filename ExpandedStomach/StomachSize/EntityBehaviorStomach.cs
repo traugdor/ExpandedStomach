@@ -300,7 +300,7 @@ namespace ExpandedStomach
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
 
-            bool overeating = strain > laststrain;
+            bool overeating = strain == 1 || strain > laststrain;
             bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
