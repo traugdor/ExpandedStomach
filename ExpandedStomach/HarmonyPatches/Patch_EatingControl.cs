@@ -323,7 +323,7 @@ namespace ExpandedStomach.HarmonyPatches
             var sprintCounterField = typeof(EntityBehaviorHunger).GetField("sprintCounter", BindingFlags.Instance | BindingFlags.NonPublic);
             sprintCounterField?.SetValue(__instance, 0);
 
-            ExpandedStomachModSystem.Logger.Debug($"ExpandedStomach: {satLoss} saturation was lost.");
+            //ExpandedStomachModSystem.Logger.Debug($"ExpandedStomach: {satLoss} saturation was lost.");
 
             return true;
         }
