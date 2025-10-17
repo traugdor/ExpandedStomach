@@ -25,9 +25,7 @@ public class ExpandedStomachModSystem : ModSystem
     public static ICoreServerAPI serverapi;
     public static ICoreClientAPI clientapi;
 
-    public static bool IsHODLoaded { get; private set; }
-    public static  bool IsVigorLoaded { get; private set; }
-    public static bool IsBodyHeatBarLoaded { get; private set; }
+    public static bool AdjustBarLocation { get; private set; }
     public HudESBar hudESBar;
 
     // Called on server and client
@@ -142,12 +140,38 @@ public class ExpandedStomachModSystem : ModSystem
     {
         setupConfig(api);
         clientapi = api;
-        IsHODLoaded = api.ModLoader.IsModEnabled("hydrateordiedrate");
-        IsVigorLoaded = api.ModLoader.IsModEnabled("vigor");
-        IsBodyHeatBarLoaded = api.ModLoader.IsModEnabled("bodyheatbar") && !api.ModLoader.IsModEnabled("bodyheatbarfix");
-        if (IsHODLoaded) Mod.Logger.Notification("Hydrate or Die Rate detected. Adjusting bar position.");
-        if (IsVigorLoaded) Mod.Logger.Notification("Vigor detected. Adjusting bar position.");
-        if (IsBodyHeatBarLoaded) Mod.Logger.Notification("Body Heat Bar detected. Adjusting bar position.");
+        try
+        {
+            if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
+            {
+                AdjustBarLocation = true;
+                Mod.Logger.Notification("Hydrate or Diedrate detected.");
+            }
+            if (api.ModLoader.IsModEnabled("vigor"))
+            {
+                AdjustBarLocation = true;
+                Mod.Logger.Notification("Vigor detected.");
+            }
+            if (api.ModLoader.IsModEnabled("bodyheatbar"))
+            {
+                Mod.Logger.Notification("Body Heat Bar detected...");
+                if (api.ModLoader.IsModEnabled("bodyheatbarfix"))
+                {
+                    Mod.Logger.Notification("... however the fix mod was also detected.");
+                }
+                else
+                {
+                    AdjustBarLocation = true;
+                }
+            }
+        }
+        finally
+        {
+            if (AdjustBarLocation)
+            {
+                Mod.Logger.Notification("Adjusting bar position.");
+            }
+        }
         hudESBar = new HudESBar(api);
         Mod.Logger.Notification("Registering client-side commands!");
         RegisterCommandsClient(api);
