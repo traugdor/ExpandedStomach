@@ -53,9 +53,7 @@ namespace ExpandedStomach.Hud
             const float ESBarWidth = ESBarParentWidth * 0.41f;
 
             double yOffset = 96; //establish initial position of the bar
-            if (ExpandedStomachModSystem.IsHODLoaded ||
-                ExpandedStomachModSystem.IsVigorLoaded ||
-                ExpandedStomachModSystem.IsBodyHeatBarLoaded)
+            if (ExpandedStomachModSystem.AdjustBarLocation)
             {
                 yOffset -= 11;
             }

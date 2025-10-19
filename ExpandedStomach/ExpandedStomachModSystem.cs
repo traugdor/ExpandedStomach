@@ -242,12 +242,11 @@ public class ExpandedStomachModSystem : ModSystem
 
     public void RegisterCommandsClient(ICoreClientAPI api)
     {
-        CommandHandlers ch = new CommandHandlers(null, api, null);
+        CommandHandlers ch = new CommandHandlers(serverapi, api, null);
         string[] codes = Vintagestory.API.Server.Privilege.AllCodes();
         var parsers = api.ChatCommands.Parsers;
         api.ChatCommands
             .Create("ES")
-            .RequiresPrivilege(Privilege.root) //only run if you are server OP
             .RequiresPlayer()
             .WithDescription("Expanded Stomach root command. Use `/help es` for more information")
             .BeginSubCommand("debug")
@@ -260,6 +259,10 @@ public class ExpandedStomachModSystem : ModSystem
                     .WithDescription("Sets a config value. Use for adjusting the stomach bar options.")
                     .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("key"), parsers.OptionalWord("value") })
                     .HandleWith(ch.SetConfig)
+                .EndSubCommand()
+                .BeginSubCommand("printInfo")
+                    .WithDescription("Prints info about a player's stomach to the console.")
+                    .HandleWith(ch.PrintInfo)
                 .EndSubCommand()
             .EndSubCommand();
     }

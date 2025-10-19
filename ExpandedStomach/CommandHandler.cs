@@ -21,7 +21,7 @@ namespace ExpandedStomach
 
         internal CommandHandlers(ICoreServerAPI serverapi = null, ICoreClientAPI clientapi = null, ICoreAPI api = null)
         {
-            if (serverapi != null) isServer = true;
+            if (serverapi != null && clientAPI == null) isServer = true;
             if (clientapi != null) isClient = true;
             if (api != null) isBoth = true;
             serverAPI = serverapi;
@@ -153,10 +153,14 @@ namespace ExpandedStomach
 
         internal TextCommandResult PrintInfo(TextCommandCallingArgs args)
         {
-            string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+            string playername = "";
+            if(args.Parsers.Count > 0)
+                playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
             if (playername == "")
                 playername = args.Caller.Player.PlayerName;
-            var allplayers = serverAPI.World.AllOnlinePlayers;
+            IPlayer[] allplayers;
+            if (serverAPI != null) allplayers = serverAPI.World.AllOnlinePlayers;
+            else allplayers = clientAPI.World.AllOnlinePlayers;
             bool playerFound = false;
             IPlayer thePlayer = null;
             foreach (var player in allplayers)
