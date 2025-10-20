@@ -99,6 +99,18 @@ namespace ExpandedStomach.HarmonyPatches
             return AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
         }
 
+        static bool Prefix(BlockLiquidContainerBase __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        {
+            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+
+            float satietyBeforeEating = hunger.GetFloat("currentsaturation");
+            stomach.SetFloat("satietyBeforeEating", satietyBeforeEating);
+            byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+            return true;
+        }
+
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
             //hijack call to ReceiveSaturation and substitute it with code for eating food item
@@ -149,7 +161,7 @@ namespace ExpandedStomach.HarmonyPatches
     // Patch for regular items (meat, bread, berries, etc.)
     [HarmonyPatch(typeof(CollectibleObject), "tryEatStop")]
     [HarmonyPriority(100)]
-    public static class Patch_CollectibleObject_tryEatStop
+    public static class OmNomNomNomFooooood
     {
         static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
         {
@@ -390,15 +402,40 @@ namespace ExpandedStomach.HarmonyPatches
                 float saturation = foodprop.Satiety * servingsConsumed;
                 GetNutrientsFromFoodType(foodprop.FoodCategory, saturation, byEntity);
             }
+            if (ExpandedStomachModSystem.EFACAactive)
+            {
+
+            }
         }
 
         public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity, ItemSlot itemSlot = null)
         {
-            if(HarmonyPatchesVars.BrainFreezeInstalled && byEntity is EntityPlayer player && itemSlot != null)
+            if (HarmonyPatchesVars.BrainFreezeInstalled && byEntity is EntityPlayer player && itemSlot != null)
             {
                 HarmonyPatchesVars.BrainFreezeMethod.Invoke(null, new object[] { player, itemSlot });
             }
             float saturation = foodprops.Satiety;
+            FoodNutritionProperties[] addprops = null;
+            MethodInfo? method = typeof(CollectibleObject)
+                .GetMethod("UpdateAndGetTransitionState",
+                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
+            TransitionState tState = (TransitionState)method.Invoke(__instance, new object?[] {byEntity.World, itemSlot, EnumTransitionType.Perish});
+            float spoilState = tState?.TransitionLevel ?? 0f;
+            float spoilStateMult = 1-spoilState;
+            //debugging
+            //addprops = GetAdditiveNutritionProperties(__instance, itemSlot, spoilState);
+            //enddebugging
+            if (ExpandedStomachModSystem.EFACAactive)
+            {
+                addprops = GetAdditiveNutritionProperties(__instance, itemSlot, spoilState);
+            }
+            if (addprops != null)
+            {
+                foreach(FoodNutritionProperties addprop in addprops)
+                {
+                    saturation += addprop.Satiety * spoilStateMult;
+                }
+            }
             //get difference between how much we could hold and how much we want to eat
             float diff = 0f;
             var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
@@ -437,7 +474,7 @@ namespace ExpandedStomach.HarmonyPatches
         public static float EatMealIntoExpandedStomach(BlockMeal __instance, ItemSlot slot, float servingsLeft, EntityAgent byEntity)
         {
             ICoreAPI api = Traverse.Create(__instance).Field("api").GetValue<ICoreAPI>();
-            FoodNutritionProperties[]? multiProps = __instance.GetContentNutritionProperties(byEntity.World, slot, byEntity);
+            FoodNutritionProperties[]? multiProps = __instance.GetContentNutritionProperties(byEntity.World, slot, byEntity);            
 
             // get remaining sat from servingsleft and total meal sat and fill expandable stomach
             float mealbaseSat = 0f;
@@ -504,6 +541,23 @@ namespace ExpandedStomach.HarmonyPatches
             }
 
             return servingsLeft;
+        }
+
+        private static FoodNutritionProperties[] GetAdditiveNutritionProperties(CollectibleObject __instance, ItemSlot slot, float spoilState)
+        {
+            // get additional nutrition properties
+            float SatMult = __instance.Attributes?["satMult"].AsFloat(1f) ?? 1f;
+            FloatArrayAttribute additiveNutrients = slot.Itemstack.Attributes["expandedSats"] as FloatArrayAttribute;
+            float[] exSats = additiveNutrients?.value;
+            if (exSats == null || exSats.Length < 6) return null;
+            List<FoodNutritionProperties> props = [];
+            for (int i = 1; i <= 5; i++)
+            {
+                if (exSats[i] != 0)
+                    props.Add(new() { FoodCategory = (EnumFoodCategory)(i-1), Satiety = exSats[i] * SatMult});
+            }
+            if (exSats[0] != 0 && props.Count > 0) props[0].Health = exSats[0] * SatMult;
+            return props.ToArray();
         }
 
         public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity)

@@ -26,6 +26,7 @@ public class ExpandedStomachModSystem : ModSystem
     public static ICoreClientAPI clientapi;
 
     public static bool AdjustBarLocation { get; private set; }
+    public static bool EFACAactive { get; private set; }
     public HudESBar hudESBar;
 
     // Called on server and client
@@ -126,6 +127,11 @@ public class ExpandedStomachModSystem : ModSystem
                 harmonyUnpatcher.Unpatch(target, HarmonyPatchType.Transpiler, "brainfreeze");
 
                 api.Logger.Notification("TryEatStopTranspiler successfully patched.");
+            }
+            //detect expanded foods/A Culinary Artillery
+            if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
+            {
+                EFACAactive = true;
             }
             var harmony = new Harmony("expandedstomach");
             harmony.PatchAll();
