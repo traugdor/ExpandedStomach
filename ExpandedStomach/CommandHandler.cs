@@ -173,13 +173,27 @@ namespace ExpandedStomach
                 }
             }
             if (!playerFound) return TextCommandResult.Error("Player not found.");
-            var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
-            sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
-            sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
-            sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
-            return TextCommandResult.Success(sb.ToString());
+            if(serverAPI != null)
+            {
+                var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
+                sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
+                sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
+                sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
+                return TextCommandResult.Success(sb.ToString());
+            }
+            else
+            {
+                // grab information from watched attributes instead
+                var stomach = thePlayer.Entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Stomach Level/Size: " + stomach.GetFloat("expandedStomachMeter").ToString() + "/" + stomach.GetFloat("stomachSize").ToString());
+                sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.GetFloat("expandedStomachCapToday").ToString() + "   Average Cap: " + stomach.GetFloat("expandedStomachCapAverage").ToString());
+                sb.AppendLine("Fat Level: " + (stomach.GetFloat("fatMeter") * 100).ToString() + "%");
+                sb.AppendLine("Strain Values: Current: " + stomach.GetFloat("strain").ToString() + "   Average: " + stomach.GetFloat("averagestrain").ToString() + "   Last: " + stomach.GetFloat("laststrain").ToString());
+                return TextCommandResult.Success(sb.ToString());
+            }
         }
 
         internal TextCommandResult SetConfig(TextCommandCallingArgs args)
