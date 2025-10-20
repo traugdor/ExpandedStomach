@@ -25,8 +25,8 @@ public class ExpandedStomachModSystem : ModSystem
     public static ICoreServerAPI serverapi;
     public static ICoreClientAPI clientapi;
 
-    public static bool IsHODLoaded { get; private set; }
-    public static  bool IsVigorLoaded { get; private set; }
+    public static bool AdjustBarLocation { get; private set; }
+    public static bool EFACAactive { get; private set; }
     public HudESBar hudESBar;
 
     // Called on server and client
@@ -46,7 +46,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public static void forceOverwriteConfigFromFile(ICoreAPI api = null)
     {
-        if (api == null)
+        if(api == null)
         {
             api = serverapi;
             setupConfig(api);
@@ -74,6 +74,8 @@ public class ExpandedStomachModSystem : ModSystem
         api.World.Config.SetBool("ExpandedStomach.bar", sConfig.bar);
         api.World.Config.SetBool("ExpandedStomach.audoHideHungerBar", sConfig.audoHideHungerBar);
         api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
+        api.World.Config.SetInt("ExpandedStomach.overStuffedTimeDelay", sConfig.overStuffedTimeDelay);
+        api.World.Config.SetFloat("ExpandedStomach.overStuffedThreshold", sConfig.overStuffedThreshold);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -126,6 +128,11 @@ public class ExpandedStomachModSystem : ModSystem
 
                 api.Logger.Notification("TryEatStopTranspiler successfully patched.");
             }
+            //detect expanded foods/A Culinary Artillery
+            if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
+            {
+                EFACAactive = true;
+            }
             var harmony = new Harmony("expandedstomach");
             harmony.PatchAll();
             patched = true;
@@ -139,11 +146,41 @@ public class ExpandedStomachModSystem : ModSystem
     {
         setupConfig(api);
         clientapi = api;
-        IsHODLoaded = api.ModLoader.IsModEnabled("hydrateordiedrate");
-        IsVigorLoaded = api.ModLoader.IsModEnabled("vigor");
-        if (IsHODLoaded) Mod.Logger.Notification("Hydrate or Die Rate detected. Adjusting bar position.");
-        if (IsVigorLoaded) Mod.Logger.Notification("Vigor detected. Adjusting bar position.");
+        try
+        {
+            if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
+            {
+                AdjustBarLocation = true;
+                Mod.Logger.Notification("Hydrate or Diedrate detected.");
+            }
+            if (api.ModLoader.IsModEnabled("vigor"))
+            {
+                AdjustBarLocation = true;
+                Mod.Logger.Notification("Vigor detected.");
+            }
+            if (api.ModLoader.IsModEnabled("bodyheatbar"))
+            {
+                Mod.Logger.Notification("Body Heat Bar detected...");
+                if (api.ModLoader.IsModEnabled("bodyheatbarfix"))
+                {
+                    Mod.Logger.Notification("... however the fix mod was also detected.");
+                }
+                else
+                {
+                    AdjustBarLocation = true;
+                }
+            }
+        }
+        finally
+        {
+            if (AdjustBarLocation)
+            {
+                Mod.Logger.Notification("Adjusting bar position.");
+            }
+        }
         hudESBar = new HudESBar(api);
+        Mod.Logger.Notification("Registering client-side commands!");
+        RegisterCommandsClient(api);
         Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
     }
 
@@ -167,7 +204,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public void RegisterCommands(ICoreServerAPI api)
     {
-        CommandHandlers ch = new CommandHandlers(api, clientapi, coreapi);
+        CommandHandlers ch = new CommandHandlers(api, null, null);
         string[] codes = Vintagestory.API.Server.Privilege.AllCodes();
         var parsers = api.ChatCommands.Parsers;
         api.ChatCommands
@@ -198,13 +235,40 @@ public class ExpandedStomachModSystem : ModSystem
                     .HandleWith(ch.SetStomachSize)
                 .EndSubCommand()
                 .BeginSubCommand("printConfig")
-                    .WithDescription("Prints the config file to the console.")
+                    .WithDescription("Prints the server config to the console.")
                     .HandleWith(ch.PrintConfig)
                 .EndSubCommand()
                 .BeginSubCommand("setConfig")
-                    .WithDescription("Sets a config value.")
+                    .WithDescription("Sets a config value. Do not use for adjusting the stomach bar options. Use client commands instead.")
                     .WithArgs(new ICommandArgumentParser[]{ parsers.OptionalWord("key"),parsers.OptionalWord("value")})
                     .HandleWith(ch.SetConfig)
+                .EndSubCommand()
+            .EndSubCommand();
+    }
+
+    public void RegisterCommandsClient(ICoreClientAPI api)
+    {
+        CommandHandlers ch = new CommandHandlers(serverapi, api, null);
+        string[] codes = Vintagestory.API.Server.Privilege.AllCodes();
+        var parsers = api.ChatCommands.Parsers;
+        api.ChatCommands
+            .Create("ES")
+            .RequiresPlayer()
+            .WithDescription("Expanded Stomach root command. Use `/help es` for more information")
+            .BeginSubCommand("debug")
+                .WithDescription("Debug commands for Expanded Stomach mod.")
+                .BeginSubCommand("printConfig")
+                    .WithDescription("Prints the client config to the console.")
+                    .HandleWith(ch.PrintConfig)
+                .EndSubCommand()
+                .BeginSubCommand("setConfig")
+                    .WithDescription("Sets a config value. Use for adjusting the stomach bar options.")
+                    .WithArgs(new ICommandArgumentParser[] { parsers.OptionalWord("key"), parsers.OptionalWord("value") })
+                    .HandleWith(ch.SetConfig)
+                .EndSubCommand()
+                .BeginSubCommand("printInfo")
+                    .WithDescription("Prints info about a player's stomach to the console.")
+                    .HandleWith(ch.PrintInfo)
                 .EndSubCommand()
             .EndSubCommand();
     }

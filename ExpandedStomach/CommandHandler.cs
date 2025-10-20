@@ -15,8 +15,15 @@ namespace ExpandedStomach
         private ICoreServerAPI serverAPI;
         private ICoreAPI API;
         private ICoreClientAPI clientAPI;
-        internal CommandHandlers(ICoreServerAPI serverapi, ICoreClientAPI clientapi, ICoreAPI api)
+        private bool isClient = false;
+        private bool isServer = false;
+        private bool isBoth = false;
+
+        internal CommandHandlers(ICoreServerAPI serverapi = null, ICoreClientAPI clientapi = null, ICoreAPI api = null)
         {
+            if (serverapi != null && clientAPI == null) isServer = true;
+            if (clientapi != null) isClient = true;
+            if (api != null) isBoth = true;
             serverAPI = serverapi;
             API = api;
             clientAPI = clientapi;
@@ -38,7 +45,13 @@ namespace ExpandedStomach
 
         internal TextCommandResult PrintConfig(TextCommandCallingArgs args)
         {
-            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            ConfigServer config = null;
+            if (isClient)
+                config = ModConfig.ReadConfig<ConfigServer>(clientAPI, ConfigServer.configName);
+            if (isServer)
+                config = ModConfig.ReadConfig<ConfigServer>(serverAPI, ConfigServer.configName);
+            if (isBoth)
+                config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
             string output = "";
             foreach (var prop in config.GetType().GetProperties())
             {
@@ -140,8 +153,14 @@ namespace ExpandedStomach
 
         internal TextCommandResult PrintInfo(TextCommandCallingArgs args)
         {
-            string playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
-            var allplayers = serverAPI.World.AllOnlinePlayers;
+            string playername = "";
+            if(args.Parsers.Count > 0)
+                playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
+            if (playername == "")
+                playername = args.Caller.Player.PlayerName;
+            IPlayer[] allplayers;
+            if (serverAPI != null) allplayers = serverAPI.World.AllOnlinePlayers;
+            else allplayers = clientAPI.World.AllOnlinePlayers;
             bool playerFound = false;
             IPlayer thePlayer = null;
             foreach (var player in allplayers)
@@ -154,20 +173,37 @@ namespace ExpandedStomach
                 }
             }
             if (!playerFound) return TextCommandResult.Error("Player not found.");
-            var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
-            sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
-            sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
-            sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
-            return TextCommandResult.Success(sb.ToString());
+            if(serverAPI != null)
+            {
+                var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
+                sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
+                sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
+                sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
+                return TextCommandResult.Success(sb.ToString());
+            }
+            else
+            {
+                // grab information from watched attributes instead
+                var stomach = thePlayer.Entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Stomach Level/Size: " + stomach.GetFloat("expandedStomachMeter").ToString() + "/" + stomach.GetFloat("stomachSize").ToString());
+                sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.GetFloat("expandedStomachCapToday").ToString() + "   Average Cap: " + stomach.GetFloat("expandedStomachCapAverage").ToString());
+                sb.AppendLine("Fat Level: " + (stomach.GetFloat("fatMeter") * 100).ToString() + "%");
+                sb.AppendLine("Strain Values: Current: " + stomach.GetFloat("strain").ToString() + "   Average: " + stomach.GetFloat("averagestrain").ToString() + "   Last: " + stomach.GetFloat("laststrain").ToString());
+                return TextCommandResult.Success(sb.ToString());
+            }
         }
 
         internal TextCommandResult SetConfig(TextCommandCallingArgs args)
         {
             string key = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
             string value = args.Parsers[1].IsMissing ? "" : args.Parsers[1].GetValue().ToString();
-            var config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            ConfigServer config = null;
+            if (isBoth) config = ModConfig.ReadConfig<ConfigServer>(API, ConfigServer.configName);
+            if (isServer) config = ModConfig.ReadConfig<ConfigServer>(serverAPI, ConfigServer.configName);
+            if (isClient) config = ModConfig.ReadConfig<ConfigServer>(clientAPI, ConfigServer.configName);
 
             var configProperty = config.GetType().GetProperty(key);
 
@@ -178,8 +214,12 @@ namespace ExpandedStomach
             {
                 config.GetType().GetProperty(key).SetValue(config, Convert.ChangeType(value, configProperty.PropertyType));
             }
-
-            ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            if (isBoth)
+                ModConfig.WriteConfig<ConfigServer>(API, ConfigServer.configName, config);
+            if (isServer)
+                ModConfig.WriteConfig<ConfigServer>(serverAPI, ConfigServer.configName, config);
+            if (isClient)
+                ModConfig.WriteConfig<ConfigServer>(clientAPI, ConfigServer.configName, config);
             ExpandedStomachModSystem.forceOverwriteConfigFromFile();
             return TextCommandResult.Success($"Config {key} set to {value}");
         }

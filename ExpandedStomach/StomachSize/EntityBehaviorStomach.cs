@@ -10,6 +10,7 @@ using Vintagestory.ServerMods.NoObf;
 using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 
 namespace ExpandedStomach
@@ -19,8 +20,22 @@ namespace ExpandedStomach
 
         long serverListenerId;
         long serverListenerSlowId;
+        long stuffedListenerId = 0;
+
+        public bool starvation = false;
+        public DateTime StarvationLastEatTime = DateTime.Now;
+        public DateTime StarvationCurrentTime = DateTime.Now;
+        public float StarvationBankedDamage = 0f;
+        public bool stuffed = false;
+        public int overStuffedTimeDelay;
+        public float overStuffedThreshold;
 
         private static readonly Random rand = new Random();
+
+        public override void OnEntityRevive()
+        {
+            base.OnEntityRevive();
+        }
 
         public ITreeAttribute StomachAttributes
         {
@@ -28,6 +43,16 @@ namespace ExpandedStomach
             set
             {
                 entity.WatchedAttributes.SetAttribute("expandedStomach", value);
+                entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+            }
+        }
+
+        public float satietyBeforeEating
+        {
+            get => StomachAttributes.GetFloat("satietyBeforeEating", 0f);
+            set
+            {
+                StomachAttributes.SetFloat("satietyBeforeEating", value);
                 entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
         }
@@ -205,7 +230,12 @@ namespace ExpandedStomach
         internal void CalculateMovementSpeedPenalty()
         {
             //cap to 50% movement penalty
-            MovementPenalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
+            float penalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
+            if (stuffed)
+            {
+                penalty = 0.1f + 0.9f * penalty;
+            }
+            MovementPenalty = penalty;
         }
 
         private void UpdateWalkSpeed()
@@ -233,6 +263,7 @@ namespace ExpandedStomach
                 strain = 0;
                 laststrain = 0;
                 averagestrain = 0;
+                satietyBeforeEating = 0;
             }
             if (!entity.WatchedAttributes.HasAttribute("dayCountOffset"))
             {
@@ -241,6 +272,7 @@ namespace ExpandedStomach
             }
             CalculateMovementSpeedPenalty();
             debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
+            overStuffedTimeDelay = entity.World.Config.GetInt("ExpandedStomach.overStuffedTimeDelay");
         }
 
         public void ServerTickSUPERSlow(float deltaTime)
@@ -268,13 +300,17 @@ namespace ExpandedStomach
             var player = entity as EntityPlayer;
             var serverPlayer = player?.Player as IServerPlayer;
 
-            bool overeating = strain > averagestrain;
+            bool overeating = strain == 1 || strain > laststrain;
+            bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
             bool dieting = strain < laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
             string smessage = "";
             bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
-            int increasedifference = (int)ExpandedStomachCapAverage * 2 - StomachSize;
+            int increasedifference = GameMath.Clamp((int)ExpandedStomachCapAverage * 2 - StomachSize, -100, 100);
+            // standard length of a month = 9 days
+            int daysPerMonth = entity.World.Calendar.DaysPerMonth;
+            if (daysPerMonth > 9) increasedifference = increasedifference * 9 / daysPerMonth;
             string difficulty = entity.Api.World.Config.GetString("ExpandedStomach.difficulty");
             switch (difficulty)
             {
@@ -446,10 +482,18 @@ namespace ExpandedStomach
             {
                 strain += newbuildrate * (proximity - 0.5f) / 0.1f; // increases faster the closer to the limit
             }
+            if (proximity < 0.5f && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
+            {
+                strain -= newdecayrate * (0.5f - proximity); // decreases faster the less food you have in the stomach
+            }
+            if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
+            {
+                strain -= newdecayrate * 0.5f; // strain decreases by half
+                strain = Math.Clamp(strain, 0.5f, 1f); // don't let it go below 0.5 during maintenance mode
+            }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {
-                proximity = 0.5f;
-                strain -= newdecayrate * (1f - proximity);
+                strain -= newdecayrate; // strain decreases by full amount
                 // lower fat level?
             }
             strain = Math.Clamp(strain, 0f, 1f);
@@ -466,9 +510,12 @@ namespace ExpandedStomach
         {
             //update last time player ate
             float percentfull = ExpandedStomachMeter / StomachSize;
+            overStuffedThreshold = entity.Api.World.Config.GetFloat("ExpandedStomach.overStuffedThreshold");
             bool shouldDisplayMessages = shouldMessagesDisplay(entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"),
                                                                entity.Api.World.Config.GetBool("ExpandedStomach.bar"));
             if (percentfull <= 0 ) return;
+            if (percentfull >= overStuffedThreshold)
+                TriggerStuffedStatus(true);
             if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
@@ -542,6 +589,40 @@ namespace ExpandedStomach
             }
         }
 
+        private void TriggerStuffedStatus(bool isStuffed = false)
+        {
+            if (stuffedListenerId == 0 && isStuffed)
+                stuffedListenerId = entity.World.RegisterGameTickListener(StartCancelOverStuffedTimeDelay, overStuffedTimeDelay, 200); //1 min
+            stuffed = isStuffed;
+            CalculateMovementSpeedPenalty();
+        }
+
+        private void StartCancelOverStuffedTimeDelay(float obj)
+        {
+            if (ExpandedStomachMeter / StomachSize < overStuffedThreshold)
+            {
+                stuffed = false;
+                CalculateMovementSpeedPenalty();
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = 0;
+            }
+            else
+            {
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = entity.World.RegisterGameTickListener(MonitorStomachForOverStuffed, 2000, 0); //2 seconds
+            } 
+        }
+
+        private void MonitorStomachForOverStuffed(float obj)
+        {
+            if (ExpandedStomachMeter / StomachSize < overStuffedThreshold)
+            {
+                stuffed = false;
+                CalculateMovementSpeedPenalty();
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
+                stuffedListenerId = 0;
+            }
+        }
 
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
@@ -551,6 +632,10 @@ namespace ExpandedStomach
             {
                 entity.World.UnregisterGameTickListener(serverListenerId);
                 entity.World.UnregisterGameTickListener(serverListenerSlowId);
+            }
+            if (stuffedListenerId != 0)
+            {
+                entity.World.UnregisterGameTickListener(stuffedListenerId);
             }
         }
 

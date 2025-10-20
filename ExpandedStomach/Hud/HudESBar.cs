@@ -53,9 +53,11 @@ namespace ExpandedStomach.Hud
             const float ESBarWidth = ESBarParentWidth * 0.41f;
 
             double yOffset = 96; //establish initial position of the bar
-            yOffset += ExpandedStomachModSystem.IsHODLoaded ? 22 : 0; //add 22 if HOD is loaded
-            yOffset += ExpandedStomachModSystem.IsVigorLoaded ? 22 : 0; //add 22 if vigor is also loaded
-            yOffset += config.barVerticalOffset; //add vertical offset from config in case of other mod conflicts
+            if (ExpandedStomachModSystem.AdjustBarLocation)
+            {
+                yOffset -= 11;
+            }
+
             double esBarHeight = 10;
 
             var esBarBounds = new ElementBounds()
