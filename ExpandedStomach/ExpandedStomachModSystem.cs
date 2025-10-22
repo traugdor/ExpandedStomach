@@ -100,7 +100,6 @@ public class ExpandedStomachModSystem : ModSystem
             if (api.ModLoader.IsModEnabled("brainfreeze"))
             {
                 HarmonyPatchesVars.BrainFreezeInstalled = true;
-                api.Logger.Notification("Brainfreeze detected. Removing TryEatStopTranspiler...");
                 var type = Type.GetType(
                     "BrainFreeze.Code.HarmonyPatches.FrozenInteractions.Consumption.AddTemperaturePenalty, BrainFreeze"
                 );
@@ -109,24 +108,10 @@ public class ExpandedStomachModSystem : ModSystem
                     api.Logger.Error("Could not find AddTemperaturePenalty type in Brainfreeze.");
                     return;
                 }
-
                 HarmonyPatchesVars.BrainFreezeMethod = type.GetMethod(
                     "ApplyPenalty",
                     BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
                 );
-
-                var harmonyUnpatcher = new Harmony("expandedstomach.brainfreeze.compatibility.unpatcher");
-
-                MethodInfo target = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
-                if (target == null)
-                {
-                    api.Logger.Error("Could not find method CollectibleObject.tryEatStop.");
-                    return;
-                }
-
-                harmonyUnpatcher.Unpatch(target, HarmonyPatchType.Transpiler, "brainfreeze");
-
-                api.Logger.Notification("TryEatStopTranspiler successfully patched.");
             }
             //detect expanded foods/A Culinary Artillery
             if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
@@ -145,6 +130,14 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         setupConfig(api);
+        api.Event.PlayerJoin += (IClientPlayer player) =>
+        {
+            var entity = player.Entity;
+            if (entity != null && entity.GetBehavior<EntityBehaviorStomachClient>() == null)
+            {
+                entity.AddBehavior(new EntityBehaviorStomachClient(entity));
+            }
+        };
         clientapi = api;
         try
         {

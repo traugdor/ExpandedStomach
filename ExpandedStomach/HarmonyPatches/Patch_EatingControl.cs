@@ -160,7 +160,7 @@ namespace ExpandedStomach.HarmonyPatches
 
     // Patch for regular items (meat, bread, berries, etc.)
     [HarmonyPatch(typeof(CollectibleObject), "tryEatStop")]
-    [HarmonyPriority(100)]
+    [HarmonyPriority(Priority.Last)]
     public static class OmNomNomNomFooooood
     {
         static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
@@ -180,27 +180,51 @@ namespace ExpandedStomach.HarmonyPatches
 
             //find where the call to RecieveSaturation is
             int originalCallIndex = -1; //set to -1 for now. Check to see if modified later.
-            int ldNullIndex = -1; //set to -1 for now. Check to see if modified later.
+            int brainFreezeIndex = -1; //set to -1 for now. Check to see if modified later.
             //we store these values because we want to inject code between them.
 
             //let's find the call to RecieveSaturation
-            for (int i = 0; i < codes.Count - 2; i++) // subtract 2 because we need to check the next instruction as well.
+            for (int i = 0; i < codes.Count - 1; i++)
             {
                 if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
-                    codes[i].operand.ToString().Contains("ReceiveSaturation")) && //and it's a call to ReceiveSaturation
-                    codes[i + 1].opcode == OpCodes.Ldnull) // and the very next instruction is Ldnull
+                    codes[i].operand.ToString().Contains("ReceiveSaturation")) ) //and it's a call to ReceiveSaturation
                 {
                     // then we found it!
                     originalCallIndex = i;
-                    ldNullIndex = i + 1;
                     break;
                 }
             }
             
             //if we didn't find it, abort with exception. We want the mod to crash and fail.
-            if (originalCallIndex == -1 || ldNullIndex == -1)
+            if (originalCallIndex == -1)
             {
                 throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
+            }
+
+            //check if BrainFreeze is loaded
+            if(HarmonyPatchesVars.BrainFreezeInstalled == true)
+            {
+                //find call to brainfreeze method
+                var methodToFind = HarmonyPatchesVars.BrainFreezeMethod;
+
+                for (int i = 0; i < codes.Count - 1; i++)
+                {
+                    if ((codes[i].opcode == OpCodes.Call && //if it's a call to a virtual method
+                        codes[i].operand == methodToFind)) //and it's a call to BrainFreeze method
+                    {
+                        // then we found it!
+                        brainFreezeIndex = i;
+                        break;
+                    }
+                }
+                if(brainFreezeIndex == -1)
+                {
+                    throw new Exception("Could not find call to BrainFreeze method. Aborting patch.");
+                }
+            }
+            if(brainFreezeIndex != -1)
+            {
+                originalCallIndex = brainFreezeIndex;
             }
 
             //now it's time to inject the call to GetNutrientsFromFoodType
@@ -213,7 +237,7 @@ namespace ExpandedStomach.HarmonyPatches
                 new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
             };
 
-            codes.InsertRange(originalCallIndex+3, toInject); //insert the code before receivesaturation
+            codes.InsertRange(originalCallIndex + 1, toInject); //insert the code after receivesaturation
 
             return codes.AsEnumerable();
         } // <--- See Patch_EatingControl.cs>
@@ -410,10 +434,6 @@ namespace ExpandedStomach.HarmonyPatches
 
         public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity, ItemSlot itemSlot = null)
         {
-            if (HarmonyPatchesVars.BrainFreezeInstalled && byEntity is EntityPlayer player && itemSlot != null)
-            {
-                HarmonyPatchesVars.BrainFreezeMethod.Invoke(null, new object[] { player, itemSlot });
-            }
             float saturation = foodprops.Satiety;
             FoodNutritionProperties[] addprops = null;
             MethodInfo? method = typeof(CollectibleObject)
