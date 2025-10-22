@@ -145,6 +145,14 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         setupConfig(api);
+        api.Event.PlayerJoin += (IClientPlayer player) =>
+        {
+            var entity = player.Entity;
+            if (entity != null && entity.GetBehavior<EntityBehaviorStomachClient>() == null)
+            {
+                entity.AddBehavior(new EntityBehaviorStomachClient(entity));
+            }
+        };
         clientapi = api;
         try
         {

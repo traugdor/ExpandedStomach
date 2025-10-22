@@ -7,7 +7,7 @@
     "LadyWYT"
   ],
   "description": "Eat all you want. Finish that last bite...",
-  "version": "1.2.6",
+  "version": "1.2.7-DEV",
   "dependencies": {
     "game": "1.21.0"
   }
