@@ -98,19 +98,22 @@ namespace ExpandedStomach
             
         }
 
+        private List<(float min, float max, string value)> ranges = new List<(float min, float max, string value)>
+        {
+            (0.0f, 0.1f, "flNormal"),
+            (0.10f, 0.2f, "flSOverweight"),
+            (0.2f, 0.35f, "flOverweight"),
+            (0.35f, 0.75f, "flFat"),
+            (0.75f, 1.0f, "flObese")
+        };
+
         public override void GetInfoText(StringBuilder infotext)
         {
             string fatLevelKey = "";
-            var ranges = new List<(float min, float max, string value)>
-            {
-                (0.0f, 0.1f, "flNormal"),
-                (0.10f, 0.2f, "flSOverweight"),
-                (0.2f, 0.35f, "flOverweight"),
-                (0.35f, 0.75f, "flFat"),
-                (0.75f, 1.0f, "flObese")
-            };
-            fatLevelKey = ranges.FirstOrDefault(x => FatMeter >= x.min && StomachSize < x.max).value;
-            infotext.AppendLine(Lang.Get("expandedstomach:fatLevel", Lang.Get(fatLevelKey)));
+
+            fatLevelKey = ranges.FirstOrDefault(x => FatMeter >= x.min && FatMeter <= x.max).value;
+
+            infotext.AppendLine(string.Format(Lang.Get("expandedstomach:fatlevel"), Lang.Get("expandedstomach:" + fatLevelKey)));
         }
 
         public override string PropertyName() => "expandedStomachClient";
