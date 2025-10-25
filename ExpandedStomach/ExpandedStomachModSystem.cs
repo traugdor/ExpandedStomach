@@ -88,12 +88,16 @@ public class ExpandedStomachModSystem : ModSystem
             {
                 entity.AddBehavior(new EntityBehaviorStomach(entity));
             }
+            var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
+            if (stomachbehavior != null)
+            {
+                stomachbehavior.CalculateMovementSpeedPenalty();
+            }
         };
         api.Event.PlayerLeave += (IServerPlayer player) => { 
             
         };
         Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("expandedstomach:hello"));
-        api.Event.PlayerNowPlaying += OnPlayerNowPlaying;
         if (!patched)
         {
             // Detect Brainfreeze
@@ -130,14 +134,6 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         setupConfig(api);
-        api.Event.PlayerJoin += (IClientPlayer player) =>
-        {
-            var entity = player.Entity;
-            if (entity != null && entity.GetBehavior<EntityBehaviorStomachClient>() == null)
-            {
-                entity.AddBehavior(new EntityBehaviorStomachClient(entity));
-            }
-        };
         clientapi = api;
         try
         {
@@ -175,17 +171,6 @@ public class ExpandedStomachModSystem : ModSystem
         Mod.Logger.Notification("Registering client-side commands!");
         RegisterCommandsClient(api);
         Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
-    }
-
-    private void OnPlayerNowPlaying(IServerPlayer thePlayer)
-    {
-        var entity = thePlayer.Entity;
-        if(entity == null) return;
-        var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
-        if (stomachbehavior != null)
-        {
-            stomachbehavior.CalculateMovementSpeedPenalty();
-        }
     }
 
     public override void Dispose()
