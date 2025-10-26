@@ -11,11 +11,11 @@ using Vintagestory.API.Datastructures;
 namespace ExpandedStomach.HarmonyPatches
 {
     [HarmonyPatch(typeof(EntityPlayer), "GetInfoText")]
-    internal class Patch_GetInfoText
+    public static class Patch_GetInfoText
     {
-        ITreeAttribute stomach = null;
+        static ITreeAttribute stomach = null;
 
-        private List<(float min, float max, string value)> ranges = new List<(float min, float max, string value)>
+        static List<(float min, float max, string value)> ranges = new List<(float min, float max, string value)>
         {
             (0.0f, 0.1f, "flNormal"),
             (0.10f, 0.2f, "flSOverweight"),
@@ -24,7 +24,7 @@ namespace ExpandedStomach.HarmonyPatches
             (0.75f, 1.0f, "flObese")
         };
 
-        public void Prefix(EntityPlayer __instance, out StringBuilder __state)
+        static void Prefix(EntityPlayer __instance, out StringBuilder __state)
         {
             __state = new StringBuilder();
             stomach = __instance.WatchedAttributes.GetTreeAttribute("expandedStomach");
@@ -39,7 +39,7 @@ namespace ExpandedStomach.HarmonyPatches
             }
         }
 
-        public void PostFix(ref string __result, StringBuilder __state)
+        static void PostFix(ref string __result, StringBuilder __state)
         {
             string oldResult = __result;
             __state.Append(oldResult);
