@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Vintagestory.API.Common;
@@ -10,7 +11,18 @@ using Vintagestory.API.Datastructures;
 
 namespace ExpandedStomach.HarmonyPatches
 {
-    [HarmonyPatch(typeof(EntityPlayer), "GetInfoText")]
+    public static class ClientPatcher
+    {
+        public static void ApplyClientPatches(Harmony harmony)
+        {
+            //getInfoText
+            MethodInfo getInfoText = AccessTools.Method(typeof(EntityPlayer), "GetInfoText");
+            MethodInfo getInfoTextPre = AccessTools.Method(typeof(Patch_GetInfoText), nameof(Patch_GetInfoText.Prefix));
+            MethodInfo getInfoTextPost = AccessTools.Method(typeof(Patch_GetInfoText), nameof(Patch_GetInfoText.Postfix));
+            harmony.Patch(getInfoText, prefix: new HarmonyMethod(getInfoTextPre), postfix: new HarmonyMethod(getInfoTextPost));
+        }
+    }
+
     public static class Patch_GetInfoText
     {
         static ITreeAttribute stomach = null;
@@ -24,7 +36,7 @@ namespace ExpandedStomach.HarmonyPatches
             (0.75f, 1.0f, "flObese")
         };
 
-        static void Prefix(EntityPlayer __instance, out StringBuilder __state)
+        public static bool Prefix(EntityPlayer __instance, ref StringBuilder __state)
         {
             __state = new StringBuilder();
             stomach = __instance.WatchedAttributes.GetTreeAttribute("expandedStomach");
@@ -37,9 +49,10 @@ namespace ExpandedStomach.HarmonyPatches
 
                 __state.AppendLine(string.Format(Lang.Get("expandedstomach:fatlevel"), Lang.Get("expandedstomach:" + fatLevelKey)));
             }
+            return true;
         }
 
-        static void PostFix(ref string __result, StringBuilder __state)
+        public static void Postfix(ref string __result, StringBuilder __state)
         {
             string oldResult = __result;
             __state.Append(oldResult);
