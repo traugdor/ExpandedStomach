@@ -188,7 +188,7 @@ namespace ExpandedStomach
                 // grab information from watched attributes instead
                 var stomach = thePlayer.Entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
                 StringBuilder sb = new StringBuilder();
-                sb.AppendLine("Stomach Level/Size: " + stomach.GetFloat("expandedStomachMeter").ToString() + "/" + stomach.GetFloat("stomachSize").ToString());
+                sb.AppendLine("Stomach Level/Size: " + stomach.GetFloat("expandedStomachMeter").ToString() + "/" + stomach.GetInt("stomachSize").ToString());
                 sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.GetFloat("expandedStomachCapToday").ToString() + "   Average Cap: " + stomach.GetFloat("expandedStomachCapAverage").ToString());
                 sb.AppendLine("Fat Level: " + (stomach.GetFloat("fatMeter") * 100).ToString() + "%");
                 sb.AppendLine("Strain Values: Current: " + stomach.GetFloat("strain").ToString() + "   Average: " + stomach.GetFloat("averagestrain").ToString() + "   Last: " + stomach.GetFloat("laststrain").ToString());

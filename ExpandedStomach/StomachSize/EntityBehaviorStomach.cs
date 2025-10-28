@@ -407,14 +407,15 @@ namespace ExpandedStomach
                     {
                         if (FatMeterChanged)
                         {
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
-                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
-                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                            if(smessage != "") smessage += "\n\n";
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                     }
                     smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
@@ -427,14 +428,15 @@ namespace ExpandedStomach
                     {
                         if (FatMeterChanged)
                         {
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
-                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
-                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                            if (smessage != "") smessage += "\n\n";
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                         if(!string.IsNullOrEmpty(smessage.Clean().Trim()))
                         {
