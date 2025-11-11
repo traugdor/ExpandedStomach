@@ -486,12 +486,15 @@ namespace ExpandedStomach
             }
             if (proximity < 0.5f && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
             {
-                strain -= newdecayrate * (0.5f - proximity); // decreases faster the less food you have in the stomach
+                float newstrain = strain - newdecayrate * 0.5f;
+                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                if (newstrain < strain) strain = newstrain;
             }
             if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
             {
-                strain -= newdecayrate * 0.5f; // strain decreases by half
-                strain = Math.Clamp(strain, 0.5f, 1f); // don't let it go below 0.5 during maintenance mode
+                float newstrain = strain - newdecayrate * 0.5f;
+                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                if(newstrain < strain) strain = newstrain;
             }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {

@@ -128,7 +128,20 @@ public class ExpandedStomachModSystem : ModSystem
             ServerPatcher.ApplyServerPatches(sHarmony);
             serverPatched = true;
         }
-        serverapi = api;
+        //check for HungerPatcher
+        if (!api.ModLoader.IsModEnabled("hungrywhileinjured"))
+        {
+            api.Logger.Error("************************************");
+            api.Logger.Error("Mod HungryWhileInjured not detected.");
+            api.Logger.Error("Expanded Stomach will still work without it but it is HIGHLY recommended to install it.");
+            api.Logger.Error("Visit https://mods.vintagestory.at/hungerpatcher to download it before playing.");
+            api.Logger.Error("************************************");
+        }
+        else
+        {
+            api.Logger.Notification("Thank you for using the Hungry While Injured mod. You will experience Expanded Stomach as it was intended.");
+        }
+            serverapi = api;
         RegisterCommands(api);
         Mod.Logger.Notification("Expanded Stomach loaded and patched!");
     }
