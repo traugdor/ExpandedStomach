@@ -302,7 +302,7 @@ namespace ExpandedStomach
 
             bool overeating = strain == 1 || strain > laststrain;
             bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
-            bool dieting = strain < laststrain && !ExpandedStomachWasActive;
+            bool dieting = strain <= laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
             string smessage = "";
@@ -326,7 +326,7 @@ namespace ExpandedStomach
 
             }
             int newstomachsize = GameMath.Max(StomachSize + increasedifference, 500); //auto caps to 500 if too low
-            bool stomachsizechanged = newstomachsize.isDifferent(StomachSize);
+            bool stomachsizechanged = newstomachsize.isDifferent(StomachSize); //why is this here???
 
             if (newstomachsize > StomachSize)
             {

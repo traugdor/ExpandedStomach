@@ -196,6 +196,7 @@ public class ExpandedStomachModSystem : ModSystem
     public override void Dispose()
     {
         sHarmony?.UnpatchAll("expandedstomach");
+        cHarmony?.UnpatchAll("expandedstomach");
         serverPatched = false;
         clientPatched = false;
     }
