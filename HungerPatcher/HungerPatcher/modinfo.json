@@ -1,13 +1,13 @@
 {
   "type": "code",
-  "modid": "hungerpatcher",
-  "name": "HungerPatcher",
+  "modid": "hungrywhileinjured",
+  "name": "HungryWhileInjured",
   "side": "Server",
   "authors": [
     "traugdor"
   ],
-  "description": "Fixes a long-standing bug with hunger and satiety.",
-  "version": "1.0.1",
+  "description": "A healing body requires sustenance.",
+  "version": "2.1.0",
   "dependencies": {
     "game": ""
   }

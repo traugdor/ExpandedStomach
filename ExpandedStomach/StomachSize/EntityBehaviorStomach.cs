@@ -302,7 +302,7 @@ namespace ExpandedStomach
 
             bool overeating = strain == 1 || strain > laststrain;
             bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
-            bool dieting = strain < laststrain && !ExpandedStomachWasActive;
+            bool dieting = strain <= laststrain && !ExpandedStomachWasActive;
             float fatlossChance = 1-strain;
 
             string smessage = "";
@@ -326,7 +326,7 @@ namespace ExpandedStomach
 
             }
             int newstomachsize = GameMath.Max(StomachSize + increasedifference, 500); //auto caps to 500 if too low
-            bool stomachsizechanged = newstomachsize.isDifferent(StomachSize);
+            bool stomachsizechanged = newstomachsize.isDifferent(StomachSize); //why is this here???
 
             if (newstomachsize > StomachSize)
             {
@@ -407,14 +407,15 @@ namespace ExpandedStomach
                     {
                         if (FatMeterChanged)
                         {
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
-                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
-                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                            if(smessage != "") smessage += "\n\n";
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                     }
                     smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
@@ -427,14 +428,15 @@ namespace ExpandedStomach
                     {
                         if (FatMeterChanged)
                         {
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatplus75");
-                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += "\n" + Lang.Get("expandedstomach:bodyfatworst");
-                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += "\n" + Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += "\n" + Lang.Get("expandedstomach:bodyfatminus75");
+                            if (smessage != "") smessage += "\n\n";
+                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
+                            if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
+                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                         if(!string.IsNullOrEmpty(smessage.Clean().Trim()))
                         {
@@ -484,12 +486,15 @@ namespace ExpandedStomach
             }
             if (proximity < 0.5f && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
             {
-                strain -= newdecayrate * (0.5f - proximity); // decreases faster the less food you have in the stomach
+                float newstrain = strain - newdecayrate * 0.5f;
+                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                if (newstrain < strain) strain = newstrain;
             }
             if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
             {
-                strain -= newdecayrate * 0.5f; // strain decreases by half
-                strain = Math.Clamp(strain, 0.5f, 1f); // don't let it go below 0.5 during maintenance mode
+                float newstrain = strain - newdecayrate * 0.5f;
+                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                if(newstrain < strain) strain = newstrain;
             }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {

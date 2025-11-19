@@ -26,28 +26,61 @@ namespace ExpandedStomach.HarmonyPatches
         public static MethodInfo BrainFreezeMethod = null;
     }
 
-    ////----------------------------------------------------------------------------
-    //[HarmonyPatch(typeof(EntityBehaviorHunger), "SlowTick")]
-    //public class Patch_EntityBehaviorHunger_SlowTick
-    //{
-    //    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
-    //    {
-    //        var codes = new List<CodeInstruction>(instructions);
+    public static class ServerPatcher
+    {
+        public static void ApplyServerPatches(Harmony harmony)
+        {
+            // tryFinishEatMeal
+            MethodInfo tryFEM = (MethodInfo)YeahBoiScrapeThatBowl.TargetMethod();
+            MethodInfo tryFEMTranspiler = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Transpiler));
+            harmony.Patch(tryFEM, transpiler: new HarmonyMethod(tryFEMTranspiler));
+            // liquid tryEatStop
+            MethodInfo tryeatstopLiquid = (MethodInfo)DrinkUpMyFriend.TargetMethod();
+            MethodInfo tryeatstopLiquidPrefix = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Prefix));
+            MethodInfo tryeatstopLiquidTranspiler = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Transpiler));
+            harmony.Patch(tryeatstopLiquid, prefix: new HarmonyMethod(tryeatstopLiquidPrefix), transpiler: new HarmonyMethod(tryeatstopLiquidTranspiler));
+            // food tryEatStop
+            MethodInfo tryeatstopCO = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
+            MethodInfo tryeatstopCOPrefix = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Prefix));
+            var tesCOP = new HarmonyMethod(tryeatstopCOPrefix)
+            {
+                priority = Priority.Last
+            };
+            MethodInfo tryeatstopCOTranspiler = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Transpiler));
+            var tesCOT = new HarmonyMethod(tryeatstopCOTranspiler)
+            {
+                priority = Priority.Last
+            };
+            harmony.Patch(tryeatstopCO, prefix: tesCOP, transpiler: tesCOT);
+            // EBHunger set_Saturation
+            MethodInfo setSat = AccessTools.Method(typeof(EntityBehaviorHunger), "set_Saturation");
+            MethodInfo setSatPrefix = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_set_Saturation), nameof(Patch_EntityBehaviorHunger_set_Saturation.Prefix));
+            harmony.Patch(setSat, prefix: new HarmonyMethod(setSatPrefix));
+            // EBBTemperature OnGameTick
+            MethodInfo EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "OnGameTick");
+            MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_OnGameTick), nameof(Patch_EntityBehaviorBodyTemperature_OnGameTick.Transpiler));
+            harmony.Patch(EBBTonGameTick, transpiler: new HarmonyMethod(EBBTonGameTickTranspiler));
+            // EBHunger ReduceSaturation
+            MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
+            MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
+            var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
+            {
+                priority = Priority.Last
+            };
+            harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
+            // DONE!
+        }
+    }
 
-    //        return codes.AsEnumerable();
-    //    }
-    //}
-
-
-    [HarmonyPatch]
+    # region BlockMeal_TryFinishEatMeal
     public static class YeahBoiScrapeThatBowl
     {
-        static MethodBase TargetMethod()
+        public static MethodBase TargetMethod()
         {
             return AccessTools.Method(typeof(BlockMeal), "tryFinishEatMeal");
         }
 
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
             var codes = new List<CodeInstruction>(instructions);
 
@@ -90,16 +123,17 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
     //----------------------------------------------------------------------------
-
-    [HarmonyPatch]
+    #endregion
+    
+    #region BlockLiquidContainerBase_TryEatStop
     public static class DrinkUpMyFriend
     {
-        static MethodBase TargetMethod()
+        public static MethodBase TargetMethod()
         {
             return AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
         }
 
-        static bool Prefix(BlockLiquidContainerBase __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        public static bool Prefix(BlockLiquidContainerBase __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
         {
             var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
@@ -111,7 +145,7 @@ namespace ExpandedStomach.HarmonyPatches
             return true;
         }
 
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
             //hijack call to ReceiveSaturation and substitute it with code for eating food item
             //because drinking consumes the full amount available.
@@ -155,15 +189,13 @@ namespace ExpandedStomach.HarmonyPatches
         }
 
     }
+    #endregion
 
-    //----------------------------------------------------------------------------
-
+    #region CollectibleObject_TryEatStop
     // Patch for regular items (meat, bread, berries, etc.)
-    [HarmonyPatch(typeof(CollectibleObject), "tryEatStop")]
-    [HarmonyPriority(Priority.Last)]
     public static class OmNomNomNomFooooood
     {
-        static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        public static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
         {
             var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
@@ -175,7 +207,8 @@ namespace ExpandedStomach.HarmonyPatches
             return true;
         }
 
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il) {
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il) 
+        {
             var codes = new List<CodeInstruction>(instructions);
 
             //find where the call to RecieveSaturation is
@@ -242,8 +275,9 @@ namespace ExpandedStomach.HarmonyPatches
             return codes.AsEnumerable();
         } // <--- See Patch_EatingControl.cs>
     }
-    //----------------------------------------------------------------------------
-    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "set_Saturation")]
+    #endregion
+
+    #region EntityBehaviorHunger_set_Saturation
     public static class Patch_EntityBehaviorHunger_set_Saturation
     {
         public static bool Prefix(EntityBehaviorHunger __instance, ref float value)
@@ -278,11 +312,12 @@ namespace ExpandedStomach.HarmonyPatches
             return true; //allow method to proceed with new value
         }
     }
+    #endregion
 
-    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorBodyTemperature), "OnGameTick")]
-    public static class Patch_EntityBehaviorBodyTemperature_get_CurBodyTemperature
+    #region EntityBehaviorBodyTemperature_OnGameTick
+    public static class Patch_EntityBehaviorBodyTemperature_OnGameTick
     {
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
             var codes = new List<CodeInstruction>(instructions);
 
@@ -325,12 +360,12 @@ namespace ExpandedStomach.HarmonyPatches
             return codes.AsEnumerable();
         }
     }
+    #endregion
 
-    [HarmonyPatch(typeof(Vintagestory.GameContent.EntityBehaviorHunger), "ReduceSaturation")] // Change to actual method name if different
-    [HarmonyPriority(Priority.Last)]
+    #region EntityBehaviorHunger_ReduceSaturation
     public static class Patch_EntityBehaviorHunger_ReduceSaturation
     {
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
             var codes = new List<CodeInstruction>(instructions);
 
@@ -375,11 +410,6 @@ namespace ExpandedStomach.HarmonyPatches
 
             codes.InsertRange(insertionPoint, injected);
 
-            //foreach (var instr in codes.AsEnumerable())
-            //{
-            //    ExpandedStomachModSystem.Logger.Debug($"IL: {instr}");
-            //}
-
             return codes.AsEnumerable();
         }
 
@@ -415,10 +445,12 @@ namespace ExpandedStomach.HarmonyPatches
             return true;
         }
     }
+    #endregion
 
-    //----------------------------------------------------------------------------
+    #region Helpers
     public static class Helpers
     {
+        #region GetNutrientsFromMeal
         public static void GetNutrientsFromMeal(FoodNutritionProperties[] foodprops, float servingsConsumed, EntityAgent byEntity)
         {
             foreach (var foodprop in foodprops)
@@ -431,7 +463,9 @@ namespace ExpandedStomach.HarmonyPatches
 
             }
         }
+        #endregion
 
+        #region EatFoodIntoExpandedStomach
         public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity, ItemSlot itemSlot = null)
         {
             float saturation = foodprops.Satiety;
@@ -490,7 +524,9 @@ namespace ExpandedStomach.HarmonyPatches
             }
             byEntity.ReceiveSaturation(0, foodprops.FoodCategory);
         }
+        #endregion
 
+        #region EatMealIntoExpandedStomach
         public static float EatMealIntoExpandedStomach(BlockMeal __instance, ItemSlot slot, float servingsLeft, EntityAgent byEntity)
         {
             ICoreAPI api = Traverse.Create(__instance).Field("api").GetValue<ICoreAPI>();
@@ -562,7 +598,9 @@ namespace ExpandedStomach.HarmonyPatches
 
             return servingsLeft;
         }
+        #endregion
 
+        #region GetAdditiveNutritionProperties
         private static FoodNutritionProperties[] GetAdditiveNutritionProperties(CollectibleObject __instance, ItemSlot slot, float spoilState)
         {
             // get additional nutrition properties
@@ -579,7 +617,9 @@ namespace ExpandedStomach.HarmonyPatches
             if (exSats[0] != 0 && props.Count > 0) props[0].Health = exSats[0] * SatMult;
             return props.ToArray();
         }
+        #endregion
 
+        #region GetNutrientsFromFoodType
         public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity)
         {
             // get expandable stomach properties
@@ -643,7 +683,9 @@ namespace ExpandedStomach.HarmonyPatches
                 byEntity.WatchedAttributes.MarkPathDirty("hunger");
             }
         }
+        #endregion
 
+        #region ModifyHereTemperature
         public static float ModifyHereTemperature(EntityBehaviorBodyTemperature __instance, float hereTemp)
         {
             float bodyTempOffset = 0f;
@@ -654,6 +696,8 @@ namespace ExpandedStomach.HarmonyPatches
             bodyTempOffset = (fatlevel) * 10f; //full fat is +20 degrees C and minus 40% movement speed by default
             return hereTemp + bodyTempOffset;
         }
+        #endregion
     }
+    #endregion
 
 }

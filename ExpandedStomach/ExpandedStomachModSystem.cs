@@ -19,7 +19,8 @@ public class ExpandedStomachModSystem : ModSystem
     public static ConfigServer sConfig;
     public static ICoreAPI Api;
     public static ILogger Logger;
-    private static bool patched = false;
+    private static bool serverPatched = false;
+    private static bool clientPatched = false;
 
     public static ICoreAPI       coreapi;
     public static ICoreServerAPI serverapi;
@@ -28,6 +29,8 @@ public class ExpandedStomachModSystem : ModSystem
     public static bool AdjustBarLocation { get; private set; }
     public static bool EFACAactive { get; private set; }
     public HudESBar hudESBar;
+    Harmony sHarmony;
+    Harmony cHarmony;
 
     // Called on server and client
     // Useful for registering block/entity classes on both sides
@@ -42,6 +45,8 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartPre(ICoreAPI api)
     {
         api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
+        sHarmony = new Harmony("expandedstomach");
+        cHarmony = new Harmony("expandedstomach.client");
     }
 
     public static void forceOverwriteConfigFromFile(ICoreAPI api = null)
@@ -88,13 +93,15 @@ public class ExpandedStomachModSystem : ModSystem
             {
                 entity.AddBehavior(new EntityBehaviorStomach(entity));
             }
+            var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
+            if (stomachbehavior != null)
+            {
+                stomachbehavior.CalculateMovementSpeedPenalty();
+            }
         };
-        api.Event.PlayerLeave += (IServerPlayer player) => { 
-            
-        };
-        Mod.Logger.Notification("Hello from template mod server side: " + Lang.Get("expandedstomach:hello"));
-        api.Event.PlayerNowPlaying += OnPlayerNowPlaying;
-        if (!patched)
+
+        Mod.Logger.Notification("Hello: " + Lang.Get("expandedstomach:hello"));
+        if (!serverPatched)
         {
             // Detect Brainfreeze
             if (api.ModLoader.IsModEnabled("brainfreeze"))
@@ -118,11 +125,23 @@ public class ExpandedStomachModSystem : ModSystem
             {
                 EFACAactive = true;
             }
-            var harmony = new Harmony("expandedstomach");
-            harmony.PatchAll();
-            patched = true;
+            ServerPatcher.ApplyServerPatches(sHarmony);
+            serverPatched = true;
         }
-        serverapi = api;
+        //check for HungerPatcher
+        if (!api.ModLoader.IsModEnabled("hungrywhileinjured"))
+        {
+            api.Logger.Error("************************************");
+            api.Logger.Error("Mod HungryWhileInjured not detected.");
+            api.Logger.Error("Expanded Stomach will still work without it but it is HIGHLY recommended to install it.");
+            api.Logger.Error("Visit https://mods.vintagestory.at/hungerpatcher to download it before playing.");
+            api.Logger.Error("************************************");
+        }
+        else
+        {
+            api.Logger.Notification("Thank you for using the Hungry While Injured mod. You will experience Expanded Stomach as it was intended.");
+        }
+            serverapi = api;
         RegisterCommands(api);
         Mod.Logger.Notification("Expanded Stomach loaded and patched!");
     }
@@ -130,14 +149,6 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         setupConfig(api);
-        api.Event.PlayerJoin += (IClientPlayer player) =>
-        {
-            var entity = player.Entity;
-            if (entity != null && entity.GetBehavior<EntityBehaviorStomachClient>() == null)
-            {
-                entity.AddBehavior(new EntityBehaviorStomachClient(entity));
-            }
-        };
         clientapi = api;
         try
         {
@@ -174,25 +185,20 @@ public class ExpandedStomachModSystem : ModSystem
         hudESBar = new HudESBar(api);
         Mod.Logger.Notification("Registering client-side commands!");
         RegisterCommandsClient(api);
-        Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
-    }
-
-    private void OnPlayerNowPlaying(IServerPlayer thePlayer)
-    {
-        var entity = thePlayer.Entity;
-        if(entity == null) return;
-        var stomachbehavior = entity.GetBehavior<EntityBehaviorStomach>();
-        if (stomachbehavior != null)
+        if (!clientPatched)
         {
-            stomachbehavior.CalculateMovementSpeedPenalty();
+            ClientPatcher.ApplyClientPatches(cHarmony);
+            clientPatched = true;
         }
+        Mod.Logger.Notification("Waking up the client.... " + Lang.Get("expandedstomach:hello"));
     }
 
     public override void Dispose()
     {
-        Harmony harmony = new Harmony("expandedstomach");
-        harmony.UnpatchAll("expandedstomach");
-        patched = false;
+        sHarmony?.UnpatchAll("expandedstomach");
+        cHarmony?.UnpatchAll("expandedstomach");
+        serverPatched = false;
+        clientPatched = false;
     }
 
     public void RegisterCommands(ICoreServerAPI api)
