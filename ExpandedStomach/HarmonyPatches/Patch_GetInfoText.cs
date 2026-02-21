@@ -54,10 +54,7 @@ namespace ExpandedStomach.HarmonyPatches
 
         public static void Postfix(ref string __result, StringBuilder __state)
         {
-            string oldResult = __result;
-            StringBuilder sb = new StringBuilder(__result);
-            sb.AppendLine(__state.ToString());
-            __result = sb.ToString();
+            __result = new StringBuilder(__result).AppendLine(__state.ToString()).ToString();
         }
     }
 }
