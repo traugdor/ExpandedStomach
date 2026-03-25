@@ -8,6 +8,7 @@ ExpandedStomach is a Vintage Story mod that enhances the game's food system by a
 
 - **Secondary Stomach System**: Continue eating after your normal Satiety bar is full
 - **Drawback System**: Overeating can cause negative effects, such as weight gain, which can affect game play over time
+- **Overeating Benefits**: Eating more than your normal Satiety bar can provide benefits, such as increased nutrition, however at a reduced rate. Accumulated fat can be burned off to avoid taking hunger damage, but doing this too much or for too long increases the risk of sudden death to starvation.
 - **Stomach Size**: Your stomach can expand over time based on eating habits
 - **7-Day Average System**: Your stomach size is based on your average daily eating habits
 - **Configurable Difficulty**: Multiple settings to adjust the mod to your preferred playstyle
@@ -87,7 +88,6 @@ These commands are only available in single player or when run by a server op.
 Coding: traugdor (Discord: @quadmoon)
 Testing: traugdor, LadyWYT
 Ideas: traugdor, LadyWYT
-Artwork: LadyWYT, Flux Dev
 
 Special thanks to Dana (Craluminium2413) for assistance with the configuration system.
 
