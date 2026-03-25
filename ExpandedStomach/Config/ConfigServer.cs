@@ -64,6 +64,10 @@ namespace ExpandedStomach
         public string overstuffedthdescription => "Percentage of stomach saturation needed to be overstuffed. (default 90%)";
         [JsonProperty(Order = 26)]
         public float overStuffedThreshold { get; set; } = 0.9f;
+        [JsonProperty(Order = 27)]
+        public string fatLostToHungerMultiplierDescription => "Multiply how much fat is lost when fending off hunger. (default 100%)";
+        [JsonProperty(Order = 28)]
+        public float fatLostToHungerMultiplier { get; set; } = 1f;
 
         public ConfigServer(ICoreAPI api, ConfigServer previousConfig = null)
         {
@@ -85,6 +89,7 @@ namespace ExpandedStomach
             barVerticalOffset = previousConfig.barVerticalOffset;
             overStuffedTimeDelay = previousConfig.overStuffedTimeDelay;
             overStuffedThreshold = previousConfig.overStuffedThreshold;
+            fatLostToHungerMultiplier = previousConfig.fatLostToHungerMultiplier;
         }
     }
 }

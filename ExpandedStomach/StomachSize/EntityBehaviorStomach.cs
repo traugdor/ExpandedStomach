@@ -30,6 +30,12 @@ namespace ExpandedStomach
         public int overStuffedTimeDelay;
         public float overStuffedThreshold;
 
+        public float fatToBeLostToHunger = 0f;
+        public float totalFatLostToHunger = 0f;
+        public float hungerStavedByFatLoss = 0f;
+        public bool currentlyFendingOffHungerWithFatLoss = false;
+        public float fatLostToHungerMultiplier = 0f;
+
         private static readonly Random rand = new Random();
 
         public override void OnEntityRevive()
@@ -153,7 +159,7 @@ namespace ExpandedStomach
             {
                 float tryFloat = float.IsNaN(value) ? 0f : value;
                 tryFloat = GameMath.Clamp(tryFloat, 0f, 0.4f);
-                if(_movementPenalty != tryFloat)
+                if (_movementPenalty != tryFloat)
                 {
                     _movementPenalty = tryFloat;
                     UpdateWalkSpeed();
@@ -164,7 +170,8 @@ namespace ExpandedStomach
         public float strain
         {
             get => StomachAttributes.GetFloat("strain", 0);
-            set {
+            set
+            {
                 StomachAttributes.SetFloat("strain", value);
                 entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
@@ -223,7 +230,7 @@ namespace ExpandedStomach
                 StomachSize /= 2;
             }
             ExpandedStomachMeter = 0;
-            if(entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "hard")
+            if (entity.Api.World.Config.GetString("ExpandedStomach.difficulty") == "hard")
                 OopsWeDied = true;
         }
 
@@ -273,6 +280,7 @@ namespace ExpandedStomach
             CalculateMovementSpeedPenalty();
             debugmode = entity.World.Config.GetBool("ExpandedStomach.debugMode");
             overStuffedTimeDelay = entity.World.Config.GetInt("ExpandedStomach.overStuffedTimeDelay");
+            fatLostToHungerMultiplier = entity.World.Config.GetFloat("ExpandedStomach.fatLostToHungerMultiplier");
         }
 
         public void ServerTickSUPERSlow(float deltaTime)
@@ -282,7 +290,7 @@ namespace ExpandedStomach
             int today = (int)Math.Floor(entity.World.Calendar.TotalDays);
             if (today > days) // if a day has passed
             {
-                if(OopsWeDied) OopsWeDied = false;
+                if (OopsWeDied) OopsWeDied = false;
                 averagestrain = (averagestrain * 6 + strain) / 7;
                 ExpandedStomachCapAverage = (ExpandedStomachCapAverage * 6 + ExpandedStomachCapToday) / 7;
                 ExpandedStomachCapToday = 0;
@@ -303,7 +311,7 @@ namespace ExpandedStomach
             bool overeating = strain == 1 || strain > laststrain;
             bool maintaining = strain <= laststrain && ExpandedStomachWasActive;
             bool dieting = strain <= laststrain && !ExpandedStomachWasActive;
-            float fatlossChance = 1-strain;
+            float fatlossChance = 1 - strain;
 
             string smessage = "";
             bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
@@ -315,9 +323,9 @@ namespace ExpandedStomach
             switch (difficulty)
             {
                 case "easy":
-                    if(increasedifference > 0)
+                    if (increasedifference > 0)
                         increasedifference *= 2;
-                    if(increasedifference < 0)
+                    if (increasedifference < 0)
                         increasedifference /= 2;
                     break;
                 case "hard":
@@ -337,7 +345,7 @@ namespace ExpandedStomach
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
             StomachSize = newstomachsize;
-            if(newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
+            if (newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
             if (difficulty == "easy" || debugmode == true)
             {
                 smessage += "\nStomach size is " + StomachSize.ToString() + " units.";
@@ -407,7 +415,7 @@ namespace ExpandedStomach
                     {
                         if (FatMeterChanged)
                         {
-                            if(smessage != "") smessage += "\n\n";
+                            if (smessage != "") smessage += "\n\n";
                             if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
                             if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
                             if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
@@ -438,7 +446,7 @@ namespace ExpandedStomach
                             if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
                             if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
-                        if(!string.IsNullOrEmpty(smessage.Clean().Trim()))
+                        if (!string.IsNullOrEmpty(smessage.Clean().Trim()))
                         {
                             serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                             smessage.Clean(),
@@ -447,7 +455,7 @@ namespace ExpandedStomach
                     }
                     if (debugmode == true)
                     {
-                        smessage += "\nYour fat level is now " + (FatMeter*100).ToString() + "%.";
+                        smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
                         serverPlayer.SendMessage(GlobalConstants.GeneralChatGroup,
                             smessage.Clean(),
                             EnumChatType.Notification);
@@ -494,7 +502,7 @@ namespace ExpandedStomach
             {
                 float newstrain = strain - newdecayrate * 0.5f;
                 newstrain = Math.Clamp(newstrain, 0.5f, 1f);
-                if(newstrain < strain) strain = newstrain;
+                if (newstrain < strain) strain = newstrain;
             }
             if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
             {
@@ -513,19 +521,26 @@ namespace ExpandedStomach
 
         public override void OnEntityReceiveSaturation(float saturation, EnumFoodCategory foodCat = EnumFoodCategory.Unknown, float saturationLossDelay = 10, float nutritionGainMultiplier = 1)
         {
+            //check if stomach is full and they overate a little...or a lot
+            if (CurrentSatiety == MaxSatiety && ExpandedStomachMeter > 0) // + some threshold from the config?)
+            {
+                // reset fat to be lost
+                fatToBeLostToHunger = 0;
+                currentlyFendingOffHungerWithFatLoss = false;
+            }
             //update last time player ate
             float percentfull = ExpandedStomachMeter / StomachSize;
             overStuffedThreshold = entity.Api.World.Config.GetFloat("ExpandedStomach.overStuffedThreshold");
             bool shouldDisplayMessages = shouldMessagesDisplay(entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages"),
                                                                entity.Api.World.Config.GetBool("ExpandedStomach.bar"));
-            if (percentfull <= 0 ) return;
+            if (percentfull <= 0) return;
             if (percentfull >= overStuffedThreshold)
                 TriggerStuffedStatus(true);
             if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
                 //get stomach sat and size and calculate percentage
-                
+
                 if (shouldDisplayMessages && saturation >= 0)
                 {
                     bool messageset = false;
@@ -615,7 +630,7 @@ namespace ExpandedStomach
             {
                 entity.World.UnregisterGameTickListener(stuffedListenerId);
                 stuffedListenerId = entity.World.RegisterGameTickListener(MonitorStomachForOverStuffed, 2000, 0); //2 seconds
-            } 
+            }
         }
 
         private void MonitorStomachForOverStuffed(float obj)
@@ -632,7 +647,7 @@ namespace ExpandedStomach
         public override void OnEntityDespawn(EntityDespawnData despawn)
         {
             base.OnEntityDespawn(despawn);
-            
+
             if (serverListenerId != 0)
             {
                 entity.World.UnregisterGameTickListener(serverListenerId);

@@ -158,6 +158,7 @@ namespace ExpandedStomach
                 playername = args.Parsers[0].IsMissing ? "" : args.Parsers[0].GetValue().ToString();
             if (playername == "")
                 playername = args.Caller.Player.PlayerName;
+            string upperPlayername = playername.ToUpper();
             IPlayer[] allplayers;
             if (serverAPI != null) allplayers = serverAPI.World.AllOnlinePlayers;
             else allplayers = clientAPI.World.AllOnlinePlayers;
@@ -165,7 +166,7 @@ namespace ExpandedStomach
             IPlayer thePlayer = null;
             foreach (var player in allplayers)
             {
-                if (player.PlayerName == playername)
+                if (player.PlayerName.ToUpper() == upperPlayername)
                 {
                     thePlayer = player;
                     playerFound = true;
@@ -173,27 +174,27 @@ namespace ExpandedStomach
                 }
             }
             if (!playerFound) return TextCommandResult.Error("Player not found.");
-            if(serverAPI != null)
+            StringBuilder sb = new StringBuilder();
+            if (serverAPI != null)
             {
                 var stomach = thePlayer.Entity.GetBehavior<EntityBehaviorStomach>();
-                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Information for " + playername + ":");
                 sb.AppendLine("Stomach Level/Size: " + stomach.ExpandedStomachMeter.ToString() + "/" + stomach.StomachSize.ToString());
                 sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.ExpandedStomachCapToday.ToString() + "   Average Cap: " + stomach.ExpandedStomachCapAverage.ToString());
                 sb.AppendLine("Fat Level: " + (stomach.FatMeter * 100).ToString() + "%");
                 sb.AppendLine("Strain Values: Current: " + stomach.strain.ToString() + "   Average: " + stomach.averagestrain.ToString() + "   Last: " + stomach.laststrain.ToString());
-                return TextCommandResult.Success(sb.ToString());
             }
             else
             {
                 // grab information from watched attributes instead
                 var stomach = thePlayer.Entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Information for " + playername + ":");
                 sb.AppendLine("Stomach Level/Size: " + stomach.GetFloat("expandedStomachMeter").ToString() + "/" + stomach.GetInt("stomachSize").ToString());
                 sb.AppendLine("Stomach Cap info: Today's cap: " + stomach.GetFloat("expandedStomachCapToday").ToString() + "   Average Cap: " + stomach.GetFloat("expandedStomachCapAverage").ToString());
                 sb.AppendLine("Fat Level: " + (stomach.GetFloat("fatMeter") * 100).ToString() + "%");
                 sb.AppendLine("Strain Values: Current: " + stomach.GetFloat("strain").ToString() + "   Average: " + stomach.GetFloat("averagestrain").ToString() + "   Last: " + stomach.GetFloat("laststrain").ToString());
-                return TextCommandResult.Success(sb.ToString());
             }
+            return TextCommandResult.Success(sb.ToString());
         }
 
         internal TextCommandResult SetConfig(TextCommandCallingArgs args)
