@@ -46,7 +46,7 @@ namespace ExpandedStomach.Hud
             ComposeBarGUI(); // call this to make sure bar is fully updated;
         }
 
-        private void ComposeBarGUI()
+        public void ComposeBarGUI()
         {
             if (!_showBar) return;
             const float ESBarParentWidth = 850f;

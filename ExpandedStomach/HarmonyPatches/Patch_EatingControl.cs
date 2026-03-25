@@ -57,8 +57,8 @@ namespace ExpandedStomach.HarmonyPatches
             MethodInfo setSatPrefix = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_set_Saturation), nameof(Patch_EntityBehaviorHunger_set_Saturation.Prefix));
             harmony.Patch(setSat, prefix: new HarmonyMethod(setSatPrefix));
             // EBBTemperature OnGameTick
-            MethodInfo EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "OnGameTick");
-            MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_OnGameTick), nameof(Patch_EntityBehaviorBodyTemperature_OnGameTick.Transpiler));
+            MethodInfo EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
+            MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Transpiler));
             harmony.Patch(EBBTonGameTick, transpiler: new HarmonyMethod(EBBTonGameTickTranspiler));
             // EBHunger ReduceSaturation
             MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
@@ -159,7 +159,7 @@ namespace ExpandedStomach.HarmonyPatches
             {
                 if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
                     codes[i].operand.ToString().Contains("ReceiveSaturation")) && //and it's a call to ReceiveSaturation
-                    codes[i + 1].opcode == OpCodes.Ldloc_1) // and the very next instruction is Ldloc_1
+                    codes[i + 1].opcode == OpCodes.Ldarg_3) // and the very next instruction is Ldarg_3
                 {
                     // then we found it!
                     RecieveSaturationIndex = i;
@@ -315,7 +315,7 @@ namespace ExpandedStomach.HarmonyPatches
     #endregion
 
     #region EntityBehaviorBodyTemperature_OnGameTick
-    public static class Patch_EntityBehaviorBodyTemperature_OnGameTick
+    public static class Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature
     {
         public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
         {
@@ -327,9 +327,9 @@ namespace ExpandedStomach.HarmonyPatches
             for (int i = 2; i < codes.Count; i++)
             {
                 if (
-                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 12 &&
+                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 7 &&
                     codes[i - 1].opcode == OpCodes.Sub &&
-                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 13
+                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 8
                 )
                 {
                     // Inject after i (the stloc.s 13)
@@ -350,9 +350,9 @@ namespace ExpandedStomach.HarmonyPatches
             var toInject = new List<CodeInstruction>
             {
                 new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldloc_S, 13),
+                new CodeInstruction(OpCodes.Ldloc_S, 8),
                 new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "ModifyHereTemperature")),
-                new CodeInstruction(OpCodes.Stloc_S, 13)
+                new CodeInstruction(OpCodes.Stloc_S, 8)
             };
 
             codes.InsertRange(originalCallIndex, toInject);
