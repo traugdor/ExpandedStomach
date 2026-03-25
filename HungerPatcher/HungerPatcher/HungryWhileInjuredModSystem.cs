@@ -19,6 +19,7 @@ namespace HungryWhileInjured
         private static bool patched = false;
         ICoreServerAPI theMod;
         private static ILogger ModLogger;
+        private static bool es = false;
 
         public override void StartPre(ICoreAPI api)
         {
@@ -30,6 +31,12 @@ namespace HungryWhileInjured
             theMod = api;
             ModLogger = Mod.Logger;
             Mod.Logger.Notification("Patching serverside...");
+
+            //detect Expanded Stomach mod
+            if (api.ModLoader.IsModEnabled("expandedstomach"))
+            {
+                es = true;
+            }
 
             if (!patched)
             {
@@ -120,6 +127,7 @@ namespace HungryWhileInjured
         {
             float boostedRegen = healthRegenPerGameSecond;
             
+            // Inside the ApplyNutritionToRegenBoost method
             if (hungerBehavior != null) 
             {
                 float fruitBoost = hungerBehavior.FruitLevel / 1500f;
@@ -129,8 +137,28 @@ namespace HungryWhileInjured
                 float dairyBoost = hungerBehavior.DairyLevel / 1500f;
 
                 float boostAmount = (fruitBoost + vegBoost + proteinBoost + grainBoost + dairyBoost) / 100f;
+    
+                // Check if Expanded Stomach mod is enabled
+                if (es)
+                {
+                    // Try to get the stomach size from the entity
+                    var entity = hungerBehavior.entity as EntityPlayer;
+                    // Use reflection to find the EntityBehaviorStomach
+                    var stomachType = Type.GetType("ExpandedStomach.EntityBehaviorStomach, ExpandedStomach");
+                    var stomachBehavior = entity.GetBehavior("expandedStomach");
+
+                    if (stomachBehavior != null)
+                    {
+                        float stomachSize = stomachBehavior.GetType().GetProperty("StomachSize")?.GetValue(stomachBehavior) as float? ?? 0f;
+                        float stomachBoost = stomachSize / 5000f;
+                        boostAmount += stomachBoost;
+                        Console.WriteLine("Added {0} to health.", boostAmount);
+                    }
+                }
+    
                 boostedRegen = healthRegenPerGameSecond * (1f + boostAmount);
             }
+
             return boostedRegen;
         }
     }

@@ -28,7 +28,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public static bool AdjustBarLocation { get; private set; }
     public static bool EFACAactive { get; private set; }
-    public HudESBar hudESBar;
+    public static HudESBar hudESBar;
     Harmony sHarmony;
     Harmony cHarmony;
 
@@ -45,7 +45,7 @@ public class ExpandedStomachModSystem : ModSystem
     public override void StartPre(ICoreAPI api)
     {
         api.RegisterEntityBehaviorClass("expandedStomach", typeof(EntityBehaviorStomach));
-        sHarmony = new Harmony("expandedstomach");
+        sHarmony = new Harmony("expandedstomach.server");
         cHarmony = new Harmony("expandedstomach.client");
     }
 
@@ -54,13 +54,17 @@ public class ExpandedStomachModSystem : ModSystem
         if(api == null)
         {
             api = serverapi;
-            setupConfig(api);
+            if (api != null)
+                setupConfig(api);
             api = clientapi;
-            setupConfig(api);
+            if (api != null)
+                setupConfig(api);
             api = coreapi;
-            setupConfig(api);
+            if (api != null)
+                setupConfig(api);
         }
         else setupConfig(api);
+        hudESBar?.ComposeBarGUI(); //update bar just in case the config changed
     }
 
     public static void setupConfig(ICoreAPI api)
@@ -81,6 +85,7 @@ public class ExpandedStomachModSystem : ModSystem
         api.World.Config.SetFloat("ExpandedStomach.barVerticalOffset", sConfig.barVerticalOffset);
         api.World.Config.SetInt("ExpandedStomach.overStuffedTimeDelay", sConfig.overStuffedTimeDelay);
         api.World.Config.SetFloat("ExpandedStomach.overStuffedThreshold", sConfig.overStuffedThreshold);
+        api.World.Config.SetFloat("ExpandedStomach.fatLostToHungerMultiplier", sConfig.fatLostToHungerMultiplier);
     }
 
     public override void StartServerSide(ICoreServerAPI api)
@@ -126,6 +131,7 @@ public class ExpandedStomachModSystem : ModSystem
                 EFACAactive = true;
             }
             ServerPatcher.ApplyServerPatches(sHarmony);
+            Patch_HungerDamageTicks.ApplyCorePatches(sHarmony);
             serverPatched = true;
         }
         //check for HungerPatcher
@@ -195,7 +201,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public override void Dispose()
     {
-        sHarmony?.UnpatchAll("expandedstomach");
+        sHarmony?.UnpatchAll("expandedstomach.server");
         cHarmony?.UnpatchAll("expandedstomach.client");
         serverPatched = false;
         clientPatched = false;
