@@ -61,13 +61,17 @@ namespace ExpandedStomach.HarmonyPatches
             MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Transpiler));
             harmony.Patch(EBBTonGameTick, transpiler: new HarmonyMethod(EBBTonGameTickTranspiler));
             // EBHunger ReduceSaturation
-            MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
-            MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
-            var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
-            {
-                priority = Priority.Last
-            };
-            harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
+            // removing in favor of modifying the Saturation setter instead.
+            //MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
+            //MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
+            //var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
+            //{
+            //    priority = Priority.Last
+            //};
+            //harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
+            MethodInfo EBHsetSat = Saturation_setter.SetSaturation;
+            MethodInfo EBHsetSatPrefix = AccessTools.Method(typeof(Saturation_setter), nameof(Saturation_setter.Prefix));
+            harmony.Patch(EBHsetSat, prefix: new HarmonyMethod(EBHsetSatPrefix));
             // DONE!
         }
     }
@@ -446,6 +450,36 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
     #endregion
+
+    public static class Saturation_setter
+    {
+        public static MethodInfo SetSaturation = AccessTools.Method(typeof(EntityBehaviorHunger), "set_Saturation");
+
+        public static bool Prefix(EntityBehaviorHunger __instance, float value)
+        {
+            var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+            if (stomach == null) { return true; }
+
+            float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
+            float currentSat = __instance.Saturation;
+            if (value < currentSat)
+            {
+                if (prevStomachSat <= 0)
+                {
+                    return true;
+                }
+                float satLoss = (currentSat - value) * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
+                var config = ExpandedStomachModSystem.sConfig;
+                satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
+                satLoss *= (1 + (prevStomachSat / 11000f));
+                prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
+                stomach.SetFloat("expandedStomachMeter", prevStomachSat);
+                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+                return false;
+            }
+            return true;
+        }
+    }
 
     #region Helpers
     public static class Helpers
