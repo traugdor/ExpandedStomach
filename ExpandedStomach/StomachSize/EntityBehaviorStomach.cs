@@ -20,6 +20,7 @@ namespace ExpandedStomach
 
         long serverListenerId;
         long serverListenerSlowId;
+        long satietyWatchDogId;
         long stuffedListenerId = 0;
 
         public bool starvation = false;
@@ -99,6 +100,27 @@ namespace ExpandedStomach
         public float CurrentSatiety //just an accessor for base game
         {
             get => entity.WatchedAttributes.GetTreeAttribute("hunger").GetFloat("currentsaturation");
+        }
+
+        public void SatietyWatchDog(float dt)
+        {
+            if (ExpandedStomachMeter > 0 && CurrentSatiety < MaxSatiety)
+            {
+                float diff = MaxSatiety - CurrentSatiety;
+                if (ExpandedStomachMeter > diff)
+                {
+                    ExpandedStomachMeter -= diff;
+                    entity.WatchedAttributes.GetTreeAttribute("hunger").SetFloat("currentsaturation", MaxSatiety);
+                    entity.WatchedAttributes.MarkPathDirty("hunger");
+                }
+                else
+                {
+                    diff -= ExpandedStomachMeter;
+                    ExpandedStomachMeter = 0;
+                    entity.WatchedAttributes.GetTreeAttribute("hunger").SetFloat("currentsaturation", CurrentSatiety + diff);
+                    entity.WatchedAttributes.MarkPathDirty("hunger");
+                }
+            }
         }
 
         public float ExpandedStomachMeter
@@ -256,6 +278,7 @@ namespace ExpandedStomach
             {
                 serverListenerId = entity.World.RegisterGameTickListener(ServerTick2min, 120000, 2000); //2 min
                 serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, 60000, 2000); //1 min
+                satietyWatchDogId = entity.World.RegisterGameTickListener(SatietyWatchDog, 100, 0); //1 min
             }
 
             //create tree attribute and set all values if it doesn't exist
@@ -657,6 +680,8 @@ namespace ExpandedStomach
             {
                 entity.World.UnregisterGameTickListener(stuffedListenerId);
             }
+            if(satietyWatchDogId != 0) 
+                entity.World.UnregisterGameTickListener(satietyWatchDogId);
         }
 
         public override string PropertyName() => "expandedStomach";

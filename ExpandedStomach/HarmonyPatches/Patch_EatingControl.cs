@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -52,31 +53,23 @@ namespace ExpandedStomach.HarmonyPatches
                 priority = Priority.Last
             };
             harmony.Patch(tryeatstopCO, prefix: tesCOP, transpiler: tesCOT);
-            // EBHunger set_Saturation
-            MethodInfo setSat = AccessTools.Method(typeof(EntityBehaviorHunger), "set_Saturation");
-            MethodInfo setSatPrefix = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_set_Saturation), nameof(Patch_EntityBehaviorHunger_set_Saturation.Prefix));
-            harmony.Patch(setSat, prefix: new HarmonyMethod(setSatPrefix));
             // EBBTemperature OnGameTick
             MethodInfo EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
             MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Transpiler));
             harmony.Patch(EBBTonGameTick, transpiler: new HarmonyMethod(EBBTonGameTickTranspiler));
             // EBHunger ReduceSaturation
-            // removing in favor of modifying the Saturation setter instead.
-            //MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
-            //MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
-            //var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
-            //{
-            //    priority = Priority.Last
-            //};
-            //harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
-            MethodInfo EBHsetSat = Saturation_setter.SetSaturation;
-            MethodInfo EBHsetSatPrefix = AccessTools.Method(typeof(Saturation_setter), nameof(Saturation_setter.Prefix));
-            harmony.Patch(EBHsetSat, prefix: new HarmonyMethod(EBHsetSatPrefix));
+            MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
+            MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
+            var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
+            {
+                priority = Priority.Last
+            };
+            harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
             // DONE!
         }
     }
 
-    # region BlockMeal_TryFinishEatMeal
+    #region BlockMeal_TryFinishEatMeal
     public static class YeahBoiScrapeThatBowl
     {
         public static MethodBase TargetMethod()
@@ -281,43 +274,6 @@ namespace ExpandedStomach.HarmonyPatches
     }
     #endregion
 
-    #region EntityBehaviorHunger_set_Saturation
-    public static class Patch_EntityBehaviorHunger_set_Saturation
-    {
-        public static bool Prefix(EntityBehaviorHunger __instance, ref float value)
-        {
-            var hunger = __instance.entity.WatchedAttributes.GetTreeAttribute("hunger");
-            var ExpandedStomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            if(ExpandedStomach != null && hunger != null)
-            {
-                float currentSaturation = hunger.GetFloat("currentsaturation");
-                float currentStomachSat = ExpandedStomach.GetFloat("expandedStomachMeter");
-                if (currentSaturation > value)
-                {
-                    if (currentStomachSat > 0)
-                    {
-                        float difference = currentSaturation - value;
-                        currentStomachSat -= difference;
-                        if (currentStomachSat < 0)
-                        {
-                            value += currentStomachSat;
-                            currentStomachSat = 0;
-                        }
-                        else
-                        {
-                            value = currentSaturation; // currentsaturation remains unchanged
-                        }
-                    }
-                    ExpandedStomach.SetFloat("expandedStomachMeter", currentStomachSat);
-                    __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                }
-            }
-
-            return true; //allow method to proceed with new value
-        }
-    }
-    #endregion
-
     #region EntityBehaviorBodyTemperature_OnGameTick
     public static class Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature
     {
@@ -450,36 +406,6 @@ namespace ExpandedStomach.HarmonyPatches
         }
     }
     #endregion
-
-    public static class Saturation_setter
-    {
-        public static MethodInfo SetSaturation = AccessTools.Method(typeof(EntityBehaviorHunger), "set_Saturation");
-
-        public static bool Prefix(EntityBehaviorHunger __instance, float value)
-        {
-            var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            if (stomach == null) { return true; }
-
-            float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
-            float currentSat = __instance.Saturation;
-            if (value < currentSat)
-            {
-                if (prevStomachSat <= 0)
-                {
-                    return true;
-                }
-                float satLoss = (currentSat - value) * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
-                var config = ExpandedStomachModSystem.sConfig;
-                satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
-                satLoss *= (1 + (prevStomachSat / 11000f));
-                prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
-                stomach.SetFloat("expandedStomachMeter", prevStomachSat);
-                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                return false;
-            }
-            return true;
-        }
-    }
 
     #region Helpers
     public static class Helpers
