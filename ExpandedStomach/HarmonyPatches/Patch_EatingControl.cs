@@ -624,6 +624,7 @@ namespace ExpandedStomach.HarmonyPatches
                         {
                             //apply fraction to hoD
                             nutritionDeficit -= saturationConsumed;
+                            nutritionDeficit = Math.Max(0f, nutritionDeficit);
                             thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
                             byEntity.WatchedAttributes.MarkPathDirty("thirst");
                         }
@@ -635,6 +636,7 @@ namespace ExpandedStomach.HarmonyPatches
                         {
                             //apply fraction to hoD
                             nutritionDeficit -= saturationConsumed;
+                            nutritionDeficit = Math.Max(0f, nutritionDeficit);
                             thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
                             byEntity.WatchedAttributes.MarkPathDirty("thirst");
                         }
@@ -646,6 +648,7 @@ namespace ExpandedStomach.HarmonyPatches
                         {
                             //apply fraction to hoD
                             nutritionDeficit -= saturationConsumed;
+                            nutritionDeficit = Math.Max(0f, nutritionDeficit);
                             thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
                             byEntity.WatchedAttributes.MarkPathDirty("thirst");
                         }
@@ -657,6 +660,7 @@ namespace ExpandedStomach.HarmonyPatches
                         {
                             //apply fraction to hoD
                             nutritionDeficit -= saturationConsumed;
+                            nutritionDeficit = Math.Max(0f, nutritionDeficit);
                             thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
                             byEntity.WatchedAttributes.MarkPathDirty("thirst");
                         }
@@ -668,6 +672,7 @@ namespace ExpandedStomach.HarmonyPatches
                         {
                             //apply fraction to hoD
                             nutritionDeficit -= saturationConsumed;
+                            nutritionDeficit = Math.Max(0f, nutritionDeficit);
                             thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
                             byEntity.WatchedAttributes.MarkPathDirty("thirst");
                         }
