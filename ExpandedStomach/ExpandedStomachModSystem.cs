@@ -28,6 +28,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public static bool AdjustBarLocation { get; private set; }
     public static bool EFACAactive { get; private set; }
+    public static bool HoDactive { get; private set; }
     public static HudESBar hudESBar;
     Harmony sHarmony;
     Harmony cHarmony;
@@ -161,6 +162,7 @@ public class ExpandedStomachModSystem : ModSystem
             if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
             {
                 AdjustBarLocation = true;
+                HoDactive = true;
                 Mod.Logger.Notification("Hydrate or Diedrate detected.");
             }
             if (api.ModLoader.IsModEnabled("vigor"))

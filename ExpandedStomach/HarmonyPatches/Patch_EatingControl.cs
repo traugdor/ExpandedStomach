@@ -416,11 +416,11 @@ namespace ExpandedStomach.HarmonyPatches
             foreach (var foodprop in foodprops)
             {
                 float saturation = foodprop.Satiety * servingsConsumed;
-                GetNutrientsFromFoodType(foodprop.FoodCategory, saturation, byEntity);
+                GetNutrientsFromFoodType(foodprop.FoodCategory, saturation, byEntity, true);
             }
             if (ExpandedStomachModSystem.EFACAactive)
             {
-
+                //nothing yet
             }
         }
         #endregion
@@ -580,16 +580,20 @@ namespace ExpandedStomach.HarmonyPatches
         #endregion
 
         #region GetNutrientsFromFoodType
-        public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity)
+        public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity, bool wasMeal = false)
         {
             // get expandable stomach properties
             ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
             int stomachsize = stomach.GetInt("stomachSize");
             float stomachsat = stomach.GetFloat("expandedStomachMeter");
+            bool hodactive = ExpandedStomachModSystem.HoDactive;
 
             ITreeAttribute hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
             float currentsat = hunger.GetFloat("currentsaturation");
             float maxsat = hunger.GetFloat("maxsaturation");
+
+            ITreeAttribute thirst = byEntity.WatchedAttributes.GetTreeAttribute("thirst");
+            float nutritionDeficit = thirst?.TryGetFloat("nutritionDeficitAmount") ?? 0f;
             if (currentsat >= maxsat * 0.999f)
             {
                 //only absorb 1/4 of nutrition if possible. sat/10 is calculation
@@ -616,22 +620,57 @@ namespace ExpandedStomach.HarmonyPatches
                 switch (foodCat)
                 {
                     case EnumFoodCategory.Fruit:
+                        if (hodactive && wasMeal)
+                        {
+                            //apply fraction to hoD
+                            nutritionDeficit -= saturationConsumed;
+                            thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
+                            byEntity.WatchedAttributes.MarkPathDirty("thirst");
+                        }
                         fruitsat = Math.Min(maxsat, fruitsat + saturationConsumed * satMult);
                         hunger.SetFloat("fruitLevel", fruitsat);
                         break;
                     case EnumFoodCategory.Vegetable:
+                        if (hodactive && wasMeal)
+                        {
+                            //apply fraction to hoD
+                            nutritionDeficit -= saturationConsumed;
+                            thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
+                            byEntity.WatchedAttributes.MarkPathDirty("thirst");
+                        }
                         vegetablesat = Math.Min(maxsat, vegetablesat + saturationConsumed * satMult);
                         hunger.SetFloat("vegetableLevel", vegetablesat);
                         break;
                     case EnumFoodCategory.Protein:
+                        if (hodactive && wasMeal)
+                        {
+                            //apply fraction to hoD
+                            nutritionDeficit -= saturationConsumed;
+                            thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
+                            byEntity.WatchedAttributes.MarkPathDirty("thirst");
+                        }
                         proteinsat = Math.Min(maxsat, proteinsat + saturationConsumed * satMult);
                         hunger.SetFloat("proteinLevel", proteinsat);
                         break;
                     case EnumFoodCategory.Grain:
+                        if (hodactive && wasMeal)
+                        {
+                            //apply fraction to hoD
+                            nutritionDeficit -= saturationConsumed;
+                            thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
+                            byEntity.WatchedAttributes.MarkPathDirty("thirst");
+                        }
                         grainsat = Math.Min(maxsat, grainsat + saturationConsumed * satMult);
                         hunger.SetFloat("grainLevel", grainsat);
                         break;
                     case EnumFoodCategory.Dairy:
+                        if (hodactive && wasMeal)
+                        {
+                            //apply fraction to hoD
+                            nutritionDeficit -= saturationConsumed;
+                            thirst.SetFloat("nutritionDeficitAmount", nutritionDeficit);
+                            byEntity.WatchedAttributes.MarkPathDirty("thirst");
+                        }
                         dairysat = Math.Min(maxsat, dairysat + saturationConsumed * satMult);
                         hunger.SetFloat("dairyLevel", dairysat);
                         break;
