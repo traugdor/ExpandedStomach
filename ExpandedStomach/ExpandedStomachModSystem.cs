@@ -112,6 +112,7 @@ public class ExpandedStomachModSystem : ModSystem
             // Detect Brainfreeze
             if (api.ModLoader.IsModEnabled("brainfreeze"))
             {
+                Mod.Logger.Notification("Brain Freeze detected (server-side).");
                 HarmonyPatchesVars.BrainFreezeInstalled = true;
                 var type = Type.GetType(
                     "BrainFreeze.Code.HarmonyPatches.FrozenInteractions.Consumption.AddTemperaturePenalty, BrainFreeze"
@@ -130,6 +131,18 @@ public class ExpandedStomachModSystem : ModSystem
             if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
             {
                 EFACAactive = true;
+                Mod.Logger.Notification("Expanded Foods/A Culinary Artillery detected (server-side).");
+            }
+            //detect Hydrate or Diedrate
+            if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
+            {
+                HoDactive = true;
+                Mod.Logger.Notification("Hydrate or Diedrate detected (server-side).");
+            }
+            if (api.ModLoader.IsModEnabled("ithaniacannedgoods"))
+            {
+                HarmonyPatchesVars.IthaniaCannedGoodsInstalled = true;
+                Mod.Logger.Notification("Ithania Canned Goods detected (server-side).");
             }
             ServerPatcher.ApplyServerPatches(sHarmony);
             Patch_HungerDamageTicks.ApplyCorePatches(sHarmony);

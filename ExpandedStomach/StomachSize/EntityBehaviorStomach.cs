@@ -39,6 +39,48 @@ namespace ExpandedStomach
 
         private static readonly Random rand = new Random();
 
+        // Stomach size bounds
+        private const int   MinStomachSize          = 500;
+        private const int   MaxStomachSize          = 5500;
+
+        // Movement penalty
+        private const float MaxMovementPenalty      = 0.4f;
+        private const float StuffedPenaltyFloor     = 0.1f;
+        private const float StuffedPenaltyScale     = 0.9f;
+
+        // Tick intervals (milliseconds)
+        private const int   TickInterval2Min        = 120000;
+        private const int   TickInterval1Min        = 60000;
+        private const int   TickIntervalWatchdog    = 100;
+        private const int   TickJitter              = 2000;
+        private const int   StuffedRecheckInterval  = 2000;
+
+        // Hunger / strain thresholds
+        private const float DietingSatietyThreshold  = 1000f;
+        private const float StrainProximityThreshold = 0.5f;
+
+        // Strain rates
+        private const float BaseStrainBuildRate     = 0.04f;
+        private const float BaseStrainDecayRate     = 0.01f;
+
+        // Stomach growth
+        private const int   StandardMonthDays       = 9;
+        private const int   MaxDailyStomachChange   = 100;
+
+        // Fat system
+        private const float FatGainPerDay           = 0.0025f;
+        private const float FatLossRateEasy         = 0.004f;
+        private const float FatLossRateNormal       = 0.002f;
+        private const float DifficultyRollBias      = 0.25f;
+
+        // Milestone thresholds (used for both fat meter and stomach fill messages)
+        private const float Tier1Threshold          = 0.25f;
+        private const float Tier2Threshold          = 0.5f;
+        private const float Tier3Threshold          = 0.75f;
+
+        // Message cooldown
+        private static readonly TimeSpan MessageCooldown = TimeSpan.FromSeconds(1);
+
         public override void OnEntityRevive()
         {
             base.OnEntityRevive();
@@ -66,10 +108,10 @@ namespace ExpandedStomach
 
         public int StomachSize
         {
-            get => StomachAttributes.GetInt("stomachSize", 500);
+            get => StomachAttributes.GetInt("stomachSize", MinStomachSize);
             set
             {
-                int result = GameMath.Clamp(value, 500, 5500);
+                int result = GameMath.Clamp(value, MinStomachSize, MaxStomachSize);
                 StomachAttributes.SetInt("stomachSize", result);
                 entity.WatchedAttributes.MarkPathDirty("expandedStomach");
             }
@@ -180,7 +222,7 @@ namespace ExpandedStomach
             set
             {
                 float tryFloat = float.IsNaN(value) ? 0f : value;
-                tryFloat = GameMath.Clamp(tryFloat, 0f, 0.4f);
+                tryFloat = GameMath.Clamp(tryFloat, 0f, MaxMovementPenalty);
                 if (_movementPenalty != tryFloat)
                 {
                     _movementPenalty = tryFloat;
@@ -262,7 +304,7 @@ namespace ExpandedStomach
             float penalty = FatMeter * entity.Api.World.Config.GetFloat("ExpandedStomach.drawbackSeverity");
             if (stuffed)
             {
-                penalty = 0.1f + 0.9f * penalty;
+                penalty = StuffedPenaltyFloor + StuffedPenaltyScale * penalty;
             }
             MovementPenalty = penalty;
         }
@@ -276,9 +318,9 @@ namespace ExpandedStomach
         {
             if (entity.World.Side == EnumAppSide.Server)
             {
-                serverListenerId = entity.World.RegisterGameTickListener(ServerTick2min, 120000, 2000); //2 min
-                serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, 60000, 2000); //1 min
-                satietyWatchDogId = entity.World.RegisterGameTickListener(SatietyWatchDog, 100, 0); //1 min
+                serverListenerId     = entity.World.RegisterGameTickListener(ServerTick2min,      TickInterval2Min,    TickJitter);
+                serverListenerSlowId = entity.World.RegisterGameTickListener(ServerTickSUPERSlow, TickInterval1Min,    TickJitter);
+                satietyWatchDogId    = entity.World.RegisterGameTickListener(SatietyWatchDog,     TickIntervalWatchdog, 0);
             }
 
             //create tree attribute and set all values if it doesn't exist
@@ -338,10 +380,10 @@ namespace ExpandedStomach
 
             string smessage = "";
             bool immersiveMessages = entity.Api.World.Config.GetBool("ExpandedStomach.immersiveMessages");
-            int increasedifference = GameMath.Clamp((int)ExpandedStomachCapAverage * 2 - StomachSize, -100, 100);
+            int increasedifference = GameMath.Clamp((int)ExpandedStomachCapAverage * 2 - StomachSize, -MaxDailyStomachChange, MaxDailyStomachChange);
             // standard length of a month = 9 days
             int daysPerMonth = entity.World.Calendar.DaysPerMonth;
-            if (daysPerMonth > 9) increasedifference = increasedifference * 9 / daysPerMonth;
+            if (daysPerMonth > StandardMonthDays) increasedifference = increasedifference * StandardMonthDays / daysPerMonth;
             string difficulty = entity.Api.World.Config.GetString("ExpandedStomach.difficulty");
             switch (difficulty)
             {
@@ -356,19 +398,19 @@ namespace ExpandedStomach
                     break;
 
             }
-            int newstomachsize = GameMath.Max(StomachSize + increasedifference, 500); //auto caps to 500 if too low
+            int newstomachsize = GameMath.Max(StomachSize + increasedifference, MinStomachSize); //auto caps to MinStomachSize if too low
             bool stomachsizechanged = newstomachsize.isDifferent(StomachSize); //why is this here???
 
             if (newstomachsize > StomachSize)
             {
                 smessage = Lang.Get("expandedstomach:stomachwillgrow");
             }
-            else if (newstomachsize < StomachSize && newstomachsize > 500)
+            else if (newstomachsize < StomachSize && newstomachsize > MinStomachSize)
             {
                 smessage = Lang.Get("expandedstomach:stomachwillshrink");
             }
             StomachSize = newstomachsize;
-            if (newstomachsize > 5500) smessage = Lang.Get("expandedstomach:stomachatmax");
+            if (newstomachsize > MaxStomachSize) smessage = Lang.Get("expandedstomach:stomachatmax");
             if (difficulty == "easy" || debugmode == true)
             {
                 smessage += "\nStomach size is " + StomachSize.ToString() + " units.";
@@ -385,21 +427,21 @@ namespace ExpandedStomach
                 switch (difficulty)
                 {
                     case "easy":
-                        if (rand.NextDouble() + 0.25f < strain) // fat increases are skewed by 25% to make them less common
+                        if (rand.NextDouble() + DifficultyRollBias < strain) // fat increases are skewed to make them less common
                         {
-                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
+                            FatMeter += (FatGainPerDay * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                     case "normal":
                         if (rand.NextDouble() < strain)
                         {
-                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
+                            FatMeter += (FatGainPerDay * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                     case "hard":
-                        if (rand.NextDouble() - 0.25f < strain) // fat increases are skewed by 25% to make them MORE common
+                        if (rand.NextDouble() - DifficultyRollBias < strain) // fat increases are skewed to make them MORE common
                         {
-                            FatMeter += (0.0025f * (1 + averagestrain) * fatgainMultiplier);
+                            FatMeter += (FatGainPerDay * (1 + averagestrain) * fatgainMultiplier);
                         }
                         break;
                 }
@@ -409,21 +451,21 @@ namespace ExpandedStomach
                 switch (difficulty)
                 {
                     case "easy":
-                        if (rand.NextDouble() - 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them more common
+                        if (rand.NextDouble() - DifficultyRollBias < fatlossChance) // fat decreases are skewed to make them more common
                         {
-                            FatMeter -= 0.004f * fatlossMultiplier; //lose fat faster
+                            FatMeter -= FatLossRateEasy * fatlossMultiplier;
                         }
                         break;
                     case "normal":
                         if (rand.NextDouble() < fatlossChance)
                         {
-                            FatMeter -= 0.002f * fatlossMultiplier;
+                            FatMeter -= FatLossRateNormal * fatlossMultiplier;
                         }
                         break;
                     case "hard":
-                        if (rand.NextDouble() + 0.25f < fatlossChance) // fat decreases are skewed by 25% to make them less common
+                        if (rand.NextDouble() + DifficultyRollBias < fatlossChance) // fat decreases are skewed to make them less common
                         {
-                            FatMeter -= 0.002f * fatlossMultiplier;
+                            FatMeter -= FatLossRateNormal * fatlossMultiplier;
                         }
                         break;
                 }
@@ -439,14 +481,14 @@ namespace ExpandedStomach
                         if (FatMeterChanged)
                         {
                             if (smessage != "") smessage += "\n\n";
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= Tier1Threshold && oldFatMeter < Tier1Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= Tier2Threshold && oldFatMeter < Tier2Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= Tier3Threshold && oldFatMeter < Tier3Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus75");
                             if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
                             if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
+                            if (FatMeter <= Tier1Threshold && oldFatMeter > Tier1Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= Tier2Threshold && oldFatMeter > Tier2Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= Tier3Threshold && oldFatMeter > Tier3Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                     }
                     smessage += "\nYour fat level is now " + (FatMeter * 100).ToString() + "%.";
@@ -460,14 +502,14 @@ namespace ExpandedStomach
                         if (FatMeterChanged)
                         {
                             if (smessage != "") smessage += "\n\n";
-                            if (FatMeter >= 0.25 && oldFatMeter < 0.25) smessage += Lang.Get("expandedstomach:bodyfatplus25");
-                            if (FatMeter >= 0.5 && oldFatMeter < 0.5) smessage += Lang.Get("expandedstomach:bodyfatplus50");
-                            if (FatMeter >= 0.75 && oldFatMeter < 0.75) smessage += Lang.Get("expandedstomach:bodyfatplus75");
+                            if (FatMeter >= Tier1Threshold && oldFatMeter < Tier1Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus25");
+                            if (FatMeter >= Tier2Threshold && oldFatMeter < Tier2Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus50");
+                            if (FatMeter >= Tier3Threshold && oldFatMeter < Tier3Threshold) smessage += Lang.Get("expandedstomach:bodyfatplus75");
                             if (FatMeter >= 1 && oldFatMeter < 1) smessage += Lang.Get("expandedstomach:bodyfatworst");
                             if (FatMeter <= 0 && oldFatMeter > 0) smessage += Lang.Get("expandedstomach:bodyfatperfect");
-                            if (FatMeter <= 0.25 && oldFatMeter > 0.25) smessage += Lang.Get("expandedstomach:bodyfatminus25");
-                            if (FatMeter <= 0.5 && oldFatMeter > 0.5) smessage += Lang.Get("expandedstomach:bodyfatminus50");
-                            if (FatMeter <= 0.75 && oldFatMeter > 0.75) smessage += Lang.Get("expandedstomach:bodyfatminus75");
+                            if (FatMeter <= Tier1Threshold && oldFatMeter > Tier1Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus25");
+                            if (FatMeter <= Tier2Threshold && oldFatMeter > Tier2Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus50");
+                            if (FatMeter <= Tier3Threshold && oldFatMeter > Tier3Threshold) smessage += Lang.Get("expandedstomach:bodyfatminus75");
                         }
                         if (!string.IsNullOrEmpty(smessage.Clean().Trim()))
                         {
@@ -497,37 +539,35 @@ namespace ExpandedStomach
         }
 
         float proximity = 0f;
-        float buildrate = 0.04f;  // increased from 0.01f to 0.04f to build strain faster
-        float decayrate = 0.01f;  // increased from 0.005f to 0.01f to decay strain faster
 
         public void ServerTick2min(float deltaTime) // used to calculate expanded stomach size and if fat should rise
         {
             float buildratemult = entity.Api.World.Config.GetFloat("ExpandedStomach.strainGainRate");
             float decayratemult = entity.Api.World.Config.GetFloat("ExpandedStomach.strainLossRate");
 
-            float newbuildrate = buildrate * buildratemult;
-            float newdecayrate = decayrate * decayratemult;
+            float newbuildrate = BaseStrainBuildRate * buildratemult;
+            float newdecayrate = BaseStrainDecayRate * decayratemult;
 
             if (ExpandedStomachMeter > ExpandedStomachCapToday) ExpandedStomachCapToday = ExpandedStomachMeter;
             proximity = Math.Clamp(ExpandedStomachMeter / StomachSize, 0f, 1f);
             if (proximity > 0f) ExpandedStomachWasActive = true;
-            if (proximity >= 0.5f) // if 50% of stomach is full
+            if (proximity >= StrainProximityThreshold) // if 50% of stomach is full
             {
-                strain += newbuildrate * (proximity - 0.5f) / 0.1f; // increases faster the closer to the limit
+                strain += newbuildrate * (proximity - StrainProximityThreshold) / 0.1f; // increases faster the closer to the limit
             }
-            if (proximity < 0.5f && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
+            if (proximity < StrainProximityThreshold && proximity > 0f) // if 50% of stomach is empty, assume maintenance mode. Freeze fat levels?
             {
-                float newstrain = strain - newdecayrate * 0.5f;
-                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                float newstrain = strain - newdecayrate * StrainProximityThreshold;
+                newstrain = Math.Clamp(newstrain, StrainProximityThreshold, 1f);
                 if (newstrain < strain) strain = newstrain;
             }
-            if (proximity == 0f && CurrentSatiety >= 1000) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
+            if (proximity == 0f && CurrentSatiety >= DietingSatietyThreshold) // if stomach is empty but not dieting, assume maintenance mode. Freeze fat levels?
             {
-                float newstrain = strain - newdecayrate * 0.5f;
-                newstrain = Math.Clamp(newstrain, 0.5f, 1f);
+                float newstrain = strain - newdecayrate * StrainProximityThreshold;
+                newstrain = Math.Clamp(newstrain, StrainProximityThreshold, 1f);
                 if (newstrain < strain) strain = newstrain;
             }
-            if (CurrentSatiety < 1000) // if player is not overeating, assume they're on a diet
+            if (CurrentSatiety < DietingSatietyThreshold) // if player is not overeating, assume they're on a diet
             {
                 strain -= newdecayrate; // strain decreases by full amount
                 // lower fat level?
@@ -559,7 +599,7 @@ namespace ExpandedStomach
             if (percentfull <= 0) return;
             if (percentfull >= overStuffedThreshold)
                 TriggerStuffedStatus(true);
-            if (DateTime.Now > lastrecievedsaturation + TimeSpan.FromSeconds(1) && !OopsWeDied)
+            if (DateTime.Now > lastrecievedsaturation + MessageCooldown && !OopsWeDied)
             {
                 lastrecievedsaturation = DateTime.Now;
                 //get stomach sat and size and calculate percentage
@@ -573,7 +613,7 @@ namespace ExpandedStomach
                     //    "Stomach Sat/Size: " + ExpandedStomachMeter + "/" + StomachSize,
                     //    EnumChatType.Notification);
                     string message = "";
-                    if (percentfull.between(0f, 0.25f) && !to25)
+                    if (percentfull.between(0f, Tier1Threshold) && !to25)
                     {
                         to25 = true;
                         to50 = false;
@@ -583,7 +623,7 @@ namespace ExpandedStomach
                         message = Lang.Get("expandedstomach:stomachfilling");
                         messageset = true;
                     }
-                    else if (percentfull.between(0.25f, 0.5f) && !to50)
+                    else if (percentfull.between(Tier1Threshold, Tier2Threshold) && !to50)
                     {
                         to25 = false;
                         to50 = true;
@@ -593,7 +633,7 @@ namespace ExpandedStomach
                         message = Lang.Get("expandedstomach:stomachover25");
                         messageset = true;
                     }
-                    else if (percentfull.between(0.5f, 0.75f) && !to75)
+                    else if (percentfull.between(Tier2Threshold, Tier3Threshold) && !to75)
                     {
                         to25 = false;
                         to50 = false;
@@ -603,7 +643,7 @@ namespace ExpandedStomach
                         message = Lang.Get("expandedstomach:stomachover50");
                         messageset = true;
                     }
-                    else if (percentfull.between(0.75f, 1f) && !to100)
+                    else if (percentfull.between(Tier3Threshold, 1f) && !to100)
                     {
                         to25 = false;
                         to50 = false;
@@ -652,7 +692,7 @@ namespace ExpandedStomach
             else
             {
                 entity.World.UnregisterGameTickListener(stuffedListenerId);
-                stuffedListenerId = entity.World.RegisterGameTickListener(MonitorStomachForOverStuffed, 2000, 0); //2 seconds
+                stuffedListenerId = entity.World.RegisterGameTickListener(MonitorStomachForOverStuffed, StuffedRecheckInterval, 0);
             }
         }
 

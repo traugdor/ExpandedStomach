@@ -1,14 +1,8 @@
 ﻿using ExpandedStomach;
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -25,299 +19,717 @@ namespace ExpandedStomach.HarmonyPatches
     {
         public static bool BrainFreezeInstalled = false;
         public static MethodInfo BrainFreezeMethod = null;
+        public static bool IthaniaCannedGoodsInstalled = false;
     }
 
     public static class ServerPatcher
     {
+        /// <summary>
+        /// Registers all Harmony prefix/postfix patches for the server side.
+        /// Called once at mod startup after compatibility flags in <see cref="HarmonyPatchesVars"/> have been set.
+        /// </summary>
         public static void ApplyServerPatches(Harmony harmony)
         {
             // tryFinishEatMeal
-            MethodInfo tryFEM = (MethodInfo)YeahBoiScrapeThatBowl.TargetMethod();
-            MethodInfo tryFEMTranspiler = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Transpiler));
-            harmony.Patch(tryFEM, transpiler: new HarmonyMethod(tryFEMTranspiler));
+            MethodInfo tryFEM        = AccessTools.Method(typeof(BlockMeal), "tryFinishEatMeal");
+            MethodInfo tryFEMPrefix  = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Prefix));
+            MethodInfo tryFEMPostfix = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Postfix));
+            harmony.Patch(tryFEM, prefix: new HarmonyMethod(tryFEMPrefix), postfix: new HarmonyMethod(tryFEMPostfix));
             // liquid tryEatStop
-            MethodInfo tryeatstopLiquid = (MethodInfo)DrinkUpMyFriend.TargetMethod();
-            MethodInfo tryeatstopLiquidPrefix = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Prefix));
-            MethodInfo tryeatstopLiquidTranspiler = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Transpiler));
-            harmony.Patch(tryeatstopLiquid, prefix: new HarmonyMethod(tryeatstopLiquidPrefix), transpiler: new HarmonyMethod(tryeatstopLiquidTranspiler));
+            MethodInfo tryeatstopLiquid          = AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
+            MethodInfo tryeatstopLiquidPrefix    = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Prefix));
+            MethodInfo tryeatstopLiquidPostfix   = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Postfix));
+            harmony.Patch(tryeatstopLiquid, prefix: new HarmonyMethod(tryeatstopLiquidPrefix), postfix: new HarmonyMethod(tryeatstopLiquidPostfix));
             // food tryEatStop
-            MethodInfo tryeatstopCO = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
-            MethodInfo tryeatstopCOPrefix = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Prefix));
-            var tesCOP = new HarmonyMethod(tryeatstopCOPrefix)
-            {
-                priority = Priority.Last
-            };
-            MethodInfo tryeatstopCOTranspiler = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Transpiler));
-            var tesCOT = new HarmonyMethod(tryeatstopCOTranspiler)
-            {
-                priority = Priority.Last
-            };
-            harmony.Patch(tryeatstopCO, prefix: tesCOP, transpiler: tesCOT);
+            MethodInfo tryeatstopCO        = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
+            MethodInfo tryeatstopCOPrefix  = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Prefix));
+            MethodInfo tryeatstopCOPostfix = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Postfix));
+            var tesCOP  = new HarmonyMethod(tryeatstopCOPrefix)  { priority = Priority.Last };
+            var tesCOPF = new HarmonyMethod(tryeatstopCOPostfix) { priority = Priority.Last };
+            harmony.Patch(tryeatstopCO, prefix: tesCOP, postfix: tesCOPF);
             // EBBTemperature OnGameTick
-            MethodInfo EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
-            MethodInfo EBBTonGameTickTranspiler = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Transpiler));
-            harmony.Patch(EBBTonGameTick, transpiler: new HarmonyMethod(EBBTonGameTickTranspiler));
+            MethodInfo EBBTonGameTick        = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
+            MethodInfo EBBTonGameTickPrefix  = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Prefix));
+            MethodInfo EBBTonGameTickPostfix = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Postfix));
+            harmony.Patch(EBBTonGameTick, prefix: new HarmonyMethod(EBBTonGameTickPrefix), postfix: new HarmonyMethod(EBBTonGameTickPostfix));
             // EBHunger ReduceSaturation
-            MethodInfo EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
-            MethodInfo EBHRedSatT = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Transpiler));
-            var EBHRedSatTHM = new HarmonyMethod(EBHRedSatT)
+            MethodInfo EBHRedSat        = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
+            MethodInfo EBHRedSatPrefix  = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Prefix));
+            var EBHRedSatPHM = new HarmonyMethod(EBHRedSatPrefix) { priority = Priority.Last };
+            harmony.Patch(EBHRedSat, prefix: EBHRedSatPHM);
+
+            // Ithania Canned Goods
+            if (HarmonyPatchesVars.IthaniaCannedGoodsInstalled)
             {
-                priority = Priority.Last
-            };
-            harmony.Patch(EBHRedSat, transpiler: EBHRedSatTHM);
+                // CollectibleObject.OnHeldUseStop is a non-virtual vanilla method that the engine
+                // calls as the interaction-stop entry point. It then calls OnHeldInteractStop via
+                // virtual dispatch. ICG does NOT override OnHeldUseStop, so this vanilla body
+                // always executes, giving us a reliable pre/post that wraps EatFromCan entirely.
+                var onHeldUseStop  = AccessTools.Method(typeof(CollectibleObject), "OnHeldUseStop");
+                if (onHeldUseStop == null)
+                {
+                    ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find CollectibleObject.OnHeldUseStop — ICG compatibility patch skipped.");
+                }
+                else
+                {
+                    var efcPrefix  = AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Prefix));
+                    var efcPostfix = AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Postfix));
+                    harmony.Patch(onHeldUseStop, prefix: new HarmonyMethod(efcPrefix), postfix: new HarmonyMethod(efcPostfix));
+                    ExpandedStomachModSystem.Logger.Notification("ExpandedStomach: IthaniaCannedGoods compatibility patch applied successfully.");
+                }
+            }
             // DONE!
         }
     }
 
-    #region BlockMeal_TryFinishEatMeal
-    public static class YeahBoiScrapeThatBowl
+    #region Ithania
+    // Wraps CollectibleObject.OnHeldUseStop — a non-virtual vanilla method that the engine calls
+    // as the interaction-stop entry point for ALL collectibles. ICG does not override it, so the
+    // vanilla body runs unconditionally and then calls ItemCannedFood.OnHeldInteractStop (and
+    // therefore EatFromCan) via virtual dispatch.
+    //
+    // We guard on the slot being an ICG can-opened-* item so the overhead on non-ICG interactions
+    // is a single null/string check and an early return.
+    //
+    // Serving-count comparison strategy:
+    //   servings unchanged after call  →  EatFromCan returned early (base full); eat 1 serving into expanded stomach
+    //   servings decreased             →  EatFromCan ate partial; eat the overflow fraction into expanded stomach
+    //   servings == 0 / slot empty     →  EatFromCan ate everything; nothing to do
+    public static class CANweEatIThania
     {
-        public static MethodBase TargetMethod()
+        public struct State
         {
-            return AccessTools.Method(typeof(BlockMeal), "tryFinishEatMeal");
+            public float ServingsBefore;
+            public float SatPerServing;
+            /// <summary>Nutrition breakdown of each ingredient for per-category crediting in the postfix.</summary>
+            public FoodNutritionProperties[] IngredientProps;
+            /// <summary>Ingredient with the highest satiety, used for the ReceiveSaturation event call.</summary>
+            public EnumFoodCategory DominantCategory;
         }
 
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        /// <summary>
+        /// Snapshot the can state before <c>EatFromCan</c> runs: servings remaining, total satiety per
+        /// serving, and the per-ingredient nutrition breakdown for accurate per-category crediting.
+        /// </summary>
+        public static void Prefix(float secondsPassed, ItemSlot slot, EntityAgent byEntity,
+                                  EnumHandInteract useType, ref State __state)
         {
-            var codes = new List<CodeInstruction>(instructions);
+            try
+            {
+                __state = default;
 
-            var originalcallIndex = -1; //set to -1 for now. Check to see if modified later.
-            var stlocIndex = -1; //set to -1 for now. Check to see if modified later.
-            var ldlocIndex = -1; //set to -1 for now. Check to see if modified later.
+                // Only handle interact (not attack) on the server side.
+                if (useType != EnumHandInteract.HeldItemInteract) return;
+                if (byEntity.World.Side != EnumAppSide.Server) return;
+                if (byEntity.Controls.Sneak) return;
+                if (secondsPassed < 1.9f) return;
+                if (slot?.Itemstack?.Collectible?.Code?.Path?.StartsWith("can-opened") != true) return;
 
-            for (int i = 0; i < codes.Count - 3; i++) {//doing -3 because we need to check next TWO instructions
-                if ((codes[i].opcode == OpCodes.Callvirt && codes[i].operand.ToString().Contains("Consume")) 
-                    && codes[i+1].opcode == OpCodes.Stloc_3
-                    && codes[i+2].opcode == OpCodes.Ldloc_3)
+                float servings = slot.Itemstack.Attributes.GetFloat("quantityServings");
+                if (servings <= 0f) return;
+
+                // Record satiety before eating so the rest of ES can reference it.
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                if (stomach == null || hunger == null) return;
+
+                float satBefore = hunger.GetFloat("currentsaturation");
+                stomach.SetFloat("satietyBeforeEating", satBefore);
+                byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                // Collect per-ingredient nutrition props for accurate per-category overflow crediting.
+                if (!(slot.Itemstack.Attributes["contents"] is ITreeAttribute contents)) return;
+
+                float satPerServing = 0f;
+                float dominantSat   = 0f;
+                var   dominant      = EnumFoodCategory.Unknown;
+                var   propsList     = new List<FoodNutritionProperties>();
+
+                foreach (var kvp in contents)
                 {
-                    originalcallIndex = i;
-                    stlocIndex = i + 1;
-                    ldlocIndex = i + 2;
-                    break;
+                    if (!(kvp.Value is ItemstackAttribute { value: { } stack })) continue;
+                    stack.ResolveBlockOrItem(byEntity.World);
+                    var props = BlockMeal.GetIngredientStackNutritionProperties(byEntity.World, stack, null);
+                    if (props == null) continue;
+                    satPerServing += props.Satiety;
+                    if (props.Satiety > dominantSat) { dominantSat = props.Satiety; dominant = props.FoodCategory; }
+                    propsList.Add(props);
                 }
+
+                if (satPerServing <= 0f || propsList.Count == 0) return;
+
+                __state.ServingsBefore   = servings;
+                __state.SatPerServing    = satPerServing;
+                __state.DominantCategory = dominant;
+                __state.IngredientProps  = propsList.ToArray();
             }
-
-            if(originalcallIndex == -1)
+            catch (Exception ex)
             {
-                throw new Exception("Could not find call to Consume. Aborting patch.");
+                ExpandedStomachModSystem.Logger.Error($"ICG Prefix threw: {ex}");
             }
+        }
 
-            //build call to EatMealIntoExpandedStomach
-            //public static float EatMealIntoExpandedStomach(BlockMeal __instance, ItemSlot slot, float servingsLeft, EntityAgent byEntity)
-            var injection = new List<CodeInstruction>
+        /// <summary>
+        /// After <c>EatFromCan</c> returns, absorb any overflow (base was full or partially full)
+        /// into the expanded stomach and credit each ingredient's food category proportionally.
+        /// </summary>
+        public static void Postfix(float secondsPassed, ItemSlot slot, EntityAgent byEntity,
+                                   EnumHandInteract useType, State __state)
+        {
+            try
             {
-                new CodeInstruction(OpCodes.Ldarg_0), // __instance
-                new CodeInstruction(OpCodes.Ldarg_2), // slot
-                new CodeInstruction(OpCodes.Ldloc_3), // servingsLeft
-                new CodeInstruction(OpCodes.Ldarg_3), // byEntity
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatMealIntoExpandedStomach")),
-                new CodeInstruction(OpCodes.Stloc_3) // store method return value in local variable 3
-            };
+                if (useType != EnumHandInteract.HeldItemInteract) return;
+                if (byEntity.World.Side != EnumAppSide.Server) return;
+                if (byEntity.Controls.Sneak) return;
+                if (secondsPassed < 1.9f) return;
+                if (__state.IngredientProps == null || __state.SatPerServing <= 0f) return;
 
-            codes.InsertRange(stlocIndex + 1, injection); //inject after Stloc_3
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (stomach == null) return;
 
-            return codes.AsEnumerable();
+                // Determine what EatFromCan did to the slot.
+                bool slotIsEmpty  = slot?.Itemstack == null
+                                    || slot.Itemstack.Collectible?.Code?.Path == "can-empty";
+                float servingsNow = slotIsEmpty
+                                    ? 0f
+                                    : slot!.Itemstack.Attributes.GetFloat("quantityServings");
+
+                float portionBefore   = Math.Min(1f, __state.ServingsBefore);
+                float baseConsumed    = __state.ServingsBefore - servingsNow;
+                float expandedPortion = portionBefore - baseConsumed;
+
+                if (expandedPortion <= 0.001f) return;
+
+                int   stomachSize      = stomach.GetInt("stomachSize");
+                float stomachMeter     = stomach.GetFloat("expandedStomachMeter");
+                float stomachAvailable = (float)stomachSize - stomachMeter;
+                if (stomachAvailable <= 0f) return;
+
+                float overflowSat   = expandedPortion * __state.SatPerServing;
+                float satToAbsorb   = Math.Min(overflowSat, stomachAvailable);
+                float servingsToEat = satToAbsorb / __state.SatPerServing;
+
+                float newServings = servingsNow - servingsToEat;
+                if (newServings <= 0.001f)
+                {
+                    Item emptyCan = byEntity.World.GetItem(new AssetLocation("ithaniacannedgoods", "can-empty"));
+                    slot!.Itemstack = emptyCan != null ? new ItemStack(emptyCan) : null;
+                }
+                else
+                {
+                    slot!.Itemstack!.Attributes.SetFloat("quantityServings", newServings);
+                }
+                slot!.MarkDirty();
+
+                stomach.SetFloat("expandedStomachMeter", stomachMeter + satToAbsorb);
+                byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                // Credit each ingredient's category proportionally to the servings absorbed.
+                foreach (var prop in __state.IngredientProps)
+                {
+                    float ingredientSat = prop.Satiety * servingsToEat;
+                    if (ingredientSat > 0.001f)
+                        Helpers.GetNutrientsFromFoodType(prop.FoodCategory, ingredientSat, byEntity);
+                }
+                byEntity.ReceiveSaturation(0f, __state.DominantCategory);
+            }
+            catch (Exception ex)
+            {
+                ExpandedStomachModSystem.Logger.Error($"ICG Postfix threw: {ex}");
+            }
+        }
+    }
+    #endregion
+
+    #region BlockMeal_TryFinishEatMeal
+    // Postfix on BlockMeal.tryFinishEatMeal.
+    // When the base hunger meter is full and the meal still has servings remaining after the
+    // vanilla Consume() call, we absorb as many of those servings as the expanded stomach can
+    // hold in one go, then update the slot and credit nutrients accordingly.
+    public static class YeahBoiScrapeThatBowl
+    {
+        public struct State
+        {
+            public float ServingsBefore;
+            public float SatPerServing;
+            public float SatBefore;
+            public float MaxSat;
+            public bool  Valid;
+            public bool  EatAllInOneGo;
+            public FoodNutritionProperties[] MultiProps;
+        }
+
+        /// <summary>
+        /// Snapshot the meal state before <c>tryFinishEatMeal</c> runs: servings, satiety per serving,
+        /// current and max saturation, and whether the combined base+expanded capacity can hold the
+        /// whole meal in one interaction (<see cref="State.EatAllInOneGo"/>).
+        /// </summary>
+        public static void Prefix(BlockMeal __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity,
+                                   ref State __state)
+        {
+            try
+            {
+                __state = default;
+
+                if (byEntity.World.Side != EnumAppSide.Server) return;
+                if (secondsUsed < 1.45f) return;
+                if (slot?.Itemstack == null) return;
+
+                FoodNutritionProperties[] multiProps = __instance.GetContentNutritionProperties(byEntity.World, slot, byEntity);
+                if (multiProps == null || multiProps.Length == 0) return;
+
+                float satPerServing = 0f;
+                foreach (var prop in multiProps)
+                    satPerServing += prop.Satiety;
+                if (satPerServing <= 0f) return;
+
+                float servingsBefore = slot.Itemstack.Attributes.GetFloat("quantityServings");
+                if (servingsBefore <= 0f) return;
+
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
+
+                float satBefore       = hunger.GetFloat("currentsaturation");
+                float maxSat          = hunger.GetFloat("maxsaturation");
+                float baseHeadroom    = maxSat - satBefore;
+                float expandedAvail   = stomach.GetInt("stomachSize") - stomach.GetFloat("expandedStomachMeter");
+                float totalMealSat    = servingsBefore * satPerServing;
+
+                __state = new State
+                {
+                    ServingsBefore = servingsBefore,
+                    SatPerServing  = satPerServing,
+                    SatBefore      = satBefore,
+                    MaxSat         = maxSat,
+                    Valid          = true,
+                    // True only when base headroom + expanded capacity can hold the entire meal.
+                    // When false and base isn't yet full, the postfix skips overflow so the
+                    // player isn't silently stuffed into the expanded stomach on a partial fill.
+                    EatAllInOneGo  = (baseHeadroom + expandedAvail) >= totalMealSat,
+                    MultiProps     = multiProps
+                };
+            }
+            catch (Exception ex)
+            {
+                ExpandedStomachModSystem.Logger.Error($"YeahBoiScrapeThatBowl Prefix threw: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// After <c>tryFinishEatMeal</c> returns, absorb remaining servings into the expanded stomach
+        /// when the base is full (or the whole meal fits in one go). Credits each meal component's
+        /// food category proportionally via <see cref="Helpers.GetNutrientsFromMeal"/>.
+        /// </summary>
+        public static void Postfix(BlockMeal __instance, ItemSlot slot, EntityAgent byEntity,
+                                    bool handleAllServingsConsumed, bool __result, State __state)
+        {
+            try
+            {
+                if (!__result || !__state.Valid) return;
+
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
+
+                // Only absorb overflow when:
+                //   (a) the base was already full before this interaction, or
+                //   (b) combined headroom was enough to eat the whole meal in one go.
+                // Case (b) handles the smooth "finish the bowl" path.
+                // Without one of these conditions, the player is only partially filling their
+                // base meter and we leave the expanded stomach alone — no accidental overeating.
+                bool baseWasFull = __state.SatBefore >= __state.MaxSat - 0.1f;
+                if (!baseWasFull && !__state.EatAllInOneGo) return;
+
+                // Also require the base meter to actually be at capacity now (Consume filled it).
+                float currentsatNow = hunger.GetFloat("currentsaturation");
+                if (currentsatNow < __state.MaxSat - 0.1f) return;
+
+                // After tryFinishEatMeal ran, check how many servings remain in the slot.
+                float servingsNow = 0f;
+                if (slot?.Itemstack?.Collectible is BlockMeal meal)
+                    servingsNow = meal.GetQuantityServings(byEntity.World, slot.Itemstack);
+
+                if (servingsNow <= 0.001f) return; // base game ate everything
+
+                // Absorb as many remaining servings as the expanded stomach can hold.
+                float stomachMeter     = stomach.GetFloat("expandedStomachMeter");
+                int   stomachSize      = stomach.GetInt("stomachSize");
+                float expandedAvail    = (float)stomachSize - stomachMeter;
+                if (expandedAvail <= 0f) return;
+
+                float overflowSat   = servingsNow * __state.SatPerServing;
+                float satToAbsorb   = Math.Min(overflowSat, expandedAvail);
+                float servingsToEat = satToAbsorb / __state.SatPerServing;
+                float newServings   = servingsNow - servingsToEat;
+
+                // Update slot.
+                if (newServings <= 0.001f)
+                {
+                    // All remaining servings consumed — replicate tryFinishEatMeal slot cleanup.
+                    IPlayer player = (byEntity as EntityPlayer)?.Player;
+                    if (handleAllServingsConsumed && player != null)
+                    {
+                        if (__instance.Attributes["eatenBlock"].Exists)
+                        {
+                            Block block = byEntity.World.GetBlock(new AssetLocation(__instance.Attributes["eatenBlock"].AsString()));
+                            if (block != null)
+                            {
+                                if (slot.Empty || slot.StackSize == 1)
+                                    slot.Itemstack = new ItemStack(block);
+                                else if (!player.InventoryManager.TryGiveItemstack(new ItemStack(block), slotNotifyEffect: true))
+                                    byEntity.World.SpawnItemEntity(new ItemStack(block), byEntity.Pos.XYZ);
+                            }
+                        }
+                        else
+                        {
+                            slot.TakeOut(1);
+                        }
+                    }
+                    slot.MarkDirty();
+                }
+                else
+                {
+                    (__instance as BlockMeal)?.SetQuantityServings(byEntity.World, slot.Itemstack, newServings);
+                    slot.MarkDirty();
+                }
+
+                // Credit expanded stomach.
+                stomach.SetFloat("expandedStomachMeter", stomachMeter + satToAbsorb);
+                byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                // Credit nutrients (scaled to servings actually absorbed).
+                Helpers.GetNutrientsFromMeal(__state.MultiProps, servingsToEat, byEntity);
+                byEntity.ReceiveSaturation(0f, __state.MultiProps[0].FoodCategory);
+            }
+            catch (Exception ex)
+            {
+                ExpandedStomachModSystem.Logger.Error($"YeahBoiScrapeThatBowl Postfix threw: {ex}");
+            }
         }
     }
     //----------------------------------------------------------------------------
     #endregion
     
     #region BlockLiquidContainerBase_TryEatStop
+    // Postfix on BlockLiquidContainerBase.tryEatStop.
+    // Each drink interaction consumes exactly DrinkPortionSize litres (fixed, not the whole container).
+    // The player made a deliberate choice to sip — so we always split that portion's satiety
+    // immediately between base hunger and expanded stomach, with no gate on "drink again to unlock".
+    // Overflow = expectedSat − how much room the base had — goes straight to expanded stomach.
     public static class DrinkUpMyFriend
     {
-        public static MethodBase TargetMethod()
+        public struct State
         {
-            return AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
+            public float SatBefore;
+            public float MaxSat;
+            public float ExpectedSat;
+            public EnumFoodCategory FoodCategory;
+            public int   LiquidStackSizeBefore;
+            public bool  Valid;
         }
 
-        public static bool Prefix(BlockLiquidContainerBase __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        /// <summary>
+        /// Snapshot the liquid state before <c>tryEatStop</c> runs: mirrors the method's own
+        /// portion-size scaling to compute the exact expected satiety for this sip, and records
+        /// the liquid stack size so the postfix can confirm a drink actually occurred.
+        /// </summary>
+        public static void Prefix(BlockLiquidContainerBase __instance, float secondsUsed, ItemSlot slot,
+                                   EntityAgent byEntity, ref State __state)
         {
-            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
-
-            float satietyBeforeEating = hunger.GetFloat("currentsaturation");
-            stomach.SetFloat("satietyBeforeEating", satietyBeforeEating);
-            byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-
-            return true;
-        }
-
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
-        {
-            //hijack call to ReceiveSaturation and substitute it with code for eating food item
-            //because drinking consumes the full amount available.
-            var codes = new List<CodeInstruction>(instructions);
-
-            var RecieveSaturationIndex = -1; //set to -1 for now. Check to see if modified later.
-            var ldLoc1Index = -1; //set to -1 for now. Check to see if modified later.
-
-            //let's find the call to RecieveSaturation
-            for (int i = 0; i < codes.Count - 2; i++) // subtract 2 because we need to check the next instruction as well.
+            try
             {
-                if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
-                    codes[i].operand.ToString().Contains("ReceiveSaturation")) && //and it's a call to ReceiveSaturation
-                    codes[i + 1].opcode == OpCodes.Ldarg_3) // and the very next instruction is Ldarg_3
+                __state = default;
+
+                if (byEntity.World.Side != EnumAppSide.Server) return;
+                if (secondsUsed < 0.95f) return;
+                if (slot?.Itemstack == null || __instance.IsEmpty(slot.Itemstack)) return;
+
+                if (!(byEntity.World is IServerWorldAccessor world)) return;
+
+                WaterTightContainableProps containableProps = __instance.GetContentProps(slot.Itemstack);
+                FoodNutritionProperties nutriProps = __instance.GetNutritionPropertiesPerLitre(world, slot.Itemstack, byEntity)?.Clone();
+                if (containableProps == null || nutriProps == null) return;
+
+                // Mirror the method's own satiety scaling to get the exact expected sat for this sip.
+                float litresToDrink    = Math.Max(1f / containableProps.ItemsPerLitre, __instance.DrinkPortionSize);
+                int   drinkPortionItems = (int)(litresToDrink * containableProps.ItemsPerLitre);
+                float itemsPerLitreMul = (float)drinkPortionItems / containableProps.ItemsPerLitre;
+                float expectedSat      = nutriProps.Satiety * itemsPerLitreMul;
+                if (expectedSat <= 0f) return;
+
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
+
+                __state = new State
                 {
-                    // then we found it!
-                    RecieveSaturationIndex = i;
-                    ldLoc1Index = i + 1;
-                    break;
+                    SatBefore             = hunger.GetFloat("currentsaturation"),
+                    MaxSat                = hunger.GetFloat("maxsaturation"),
+                    ExpectedSat           = expectedSat,
+                    FoodCategory          = nutriProps.FoodCategory,
+                    LiquidStackSizeBefore = __instance.GetContent(slot.Itemstack)?.StackSize ?? 0,
+                    Valid                 = true
+                };
+            }
+            catch (Exception ex)
+            {
+                ExpandedStomachModSystem.Logger.Error($"DrinkUpMyFriend Prefix threw: {ex}");
+            }
+        }
+
+        /// <summary>
+        /// After <c>tryEatStop</c> returns, confirm the drink happened via liquid level drop, then
+        /// absorb any satiety overflow (beyond base headroom) into the expanded stomach.
+        /// Liquids with no food category (e.g. plain water) fill the expanded stomach meter but
+        /// skip nutrition crediting and the <c>ReceiveSaturation</c> event.
+        /// </summary>
+        public static void Postfix(BlockLiquidContainerBase __instance, ItemSlot slot,
+                                    EntityAgent byEntity, State __state)
+        {
+            try
+            {
+                if (!__state.Valid) return;
+
+                // Confirm the drink actually happened — liquid level must have dropped.
+                ItemStack contentAfter = slot?.Itemstack != null ? __instance.GetContent(slot.Itemstack) : null;
+                int liquidNow = contentAfter?.StackSize ?? 0;
+                if (liquidNow >= __state.LiquidStackSizeBefore) return;
+
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
+
+                // How much of the sip's satiety did the base meter absorb?
+                float satConsumedByBase = Math.Min(__state.MaxSat - __state.SatBefore, __state.ExpectedSat);
+                float overflowSat       = __state.ExpectedSat - satConsumedByBase;
+                if (overflowSat <= 0.001f) return;
+
+                float stomachMeter  = stomach.GetFloat("expandedStomachMeter");
+                int   stomachSize   = stomach.GetInt("stomachSize");
+                float expandedAvail = (float)stomachSize - stomachMeter;
+                if (expandedAvail <= 0f) return;
+
+                float satToAbsorb = Math.Min(overflowSat, expandedAvail);
+
+                stomach.SetFloat("expandedStomachMeter", stomachMeter + satToAbsorb);
+                byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                // Only credit nutrition and fire the eat event when the liquid has a real food category.
+                // Water and other category-less liquids (e.g. from Hydrate or Diedrate) simply fill
+                // the stomach meter without affecting nutrient levels.
+                if (__state.FoodCategory != EnumFoodCategory.Unknown)
+                {
+                    Helpers.GetNutrientsFromFoodType(__state.FoodCategory, satToAbsorb, byEntity);
+                    byEntity.ReceiveSaturation(0f, __state.FoodCategory);
                 }
             }
-
-            //if we didn't find it, abort with exception. We want the mod to crash and fail.
-            if (RecieveSaturationIndex == -1 || ldLoc1Index == -1)
+            catch (Exception ex)
             {
-                throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
+                ExpandedStomachModSystem.Logger.Error($"DrinkUpMyFriend Postfix threw: {ex}");
             }
-
-            var toInject = new List<CodeInstruction>
-            {
-                new CodeInstruction(OpCodes.Ldarg_0), //get this aka __instance
-                new CodeInstruction(OpCodes.Ldloc_1), //get the foodprops (local variable 0) ... again
-                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
-                new CodeInstruction(OpCodes.Ldarg_2), //load itemStack (argument 2)
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
-            };
-
-            codes.InsertRange(RecieveSaturationIndex + 3, toInject); //insert the code before receivesaturation
-
-            return codes.AsEnumerable();
         }
-
     }
     #endregion
 
     #region CollectibleObject_TryEatStop
-    // Patch for regular items (meat, bread, berries, etc.)
+    // Prefix/postfix on CollectibleObject.tryEatStop — covers meat, bread, berries, and any mod
+    // food item that extends CollectibleObject without overriding tryEatStop.
+    //
+    // Health effects (nutriProps.Health → ReceiveDamage) are entirely handled by the vanilla
+    // method and are never touched here; healing/poison works exactly as normal.
+    //
+    // BrainFreeze: BF patches tryEatStop via its own transpiler, which runs inside the method
+    // body. Our prefix/postfix wraps the whole thing, so BF's code always executes unimpeded.
+    // We use an analytical headroom calculation rather than a delta so we don't misattribute
+    // BF's saturation adjustments as ES overflow.
+    //
+    // EFACA/ACA: expandedSats attributes must be read in the prefix because the vanilla method
+    // calls slot.TakeOut(1) before returning, leaving the slot empty by postfix time.
+    // Each additive nutrition category is credited separately in the postfix.
     public static class OmNomNomNomFooooood
     {
-        public static bool Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot, EntityAgent byEntity)
+        public struct State
         {
-            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
-
-            float satietyBeforeEating = hunger.GetFloat("currentsaturation");
-            stomach.SetFloat("satietyBeforeEating", satietyBeforeEating);
-            byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-
-            return true;
+            public float SatBefore;
+            public float MaxSat;
+            public float ExpectedSat;             // nutriProps.Satiety * satLossMul
+            public EnumFoodCategory FoodCategory;
+            public FoodNutritionProperties[] AddProps; // EFACA extras (Satiety pre-spoilage-scaled)
+            public bool Valid;
         }
 
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il) 
+        /// <summary>
+        /// Snapshot the food item state before <c>tryEatStop</c> runs.
+        /// Reads spoilage state, mirrors the method's satiety-loss multiplier, and reads EFACA
+        /// <c>expandedSats</c> from the slot <em>now</em> — the slot is cleared by <c>TakeOut(1)</c>
+        /// inside the method body and would be gone by postfix time.
+        /// </summary>
+        public static void Prefix(CollectibleObject __instance, float secondsUsed, ItemSlot slot,
+                                   EntityAgent byEntity, ref State __state)
         {
-            var codes = new List<CodeInstruction>(instructions);
-
-            //find where the call to RecieveSaturation is
-            int originalCallIndex = -1; //set to -1 for now. Check to see if modified later.
-            int brainFreezeIndex = -1; //set to -1 for now. Check to see if modified later.
-            //we store these values because we want to inject code between them.
-
-            //let's find the call to RecieveSaturation
-            for (int i = 0; i < codes.Count - 1; i++)
+            try
             {
-                if ((codes[i].opcode == OpCodes.Callvirt && //if it's a call to a virtual method
-                    codes[i].operand.ToString().Contains("ReceiveSaturation")) ) //and it's a call to ReceiveSaturation
+                __state = default;
+
+                if (byEntity.World.Side != EnumAppSide.Server) return;
+                if (secondsUsed < 0.95f) return;
+                if (slot?.Itemstack == null) return;
+
+                FoodNutritionProperties nutriProps = __instance.GetNutritionProperties(byEntity.World, slot.Itemstack, byEntity);
+                if (nutriProps == null) return;
+
+                // Mirror tryEatStop's spoilage math exactly.
+                float spoilState  = __instance.UpdateAndGetTransitionState(byEntity.World, slot, EnumTransitionType.Perish)?.TransitionLevel ?? 0f;
+                float satLossMul  = GlobalConstants.FoodSpoilageSatLossMul(spoilState, slot.Itemstack, byEntity);
+                float expectedSat = nutriProps.Satiety * satLossMul;
+
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
+
+                // EFACA: read expandedSats NOW before slot.TakeOut(1) fires inside the method.
+                FoodNutritionProperties[] addProps = null;
+                if (ExpandedStomachModSystem.EFACAactive)
                 {
-                    // then we found it!
-                    originalCallIndex = i;
-                    break;
-                }
-            }
-            
-            //if we didn't find it, abort with exception. We want the mod to crash and fail.
-            if (originalCallIndex == -1)
-            {
-                throw new Exception("Could not find call to ReceiveSaturation. Aborting patch.");
-            }
-
-            //check if BrainFreeze is loaded
-            if(HarmonyPatchesVars.BrainFreezeInstalled == true)
-            {
-                //find call to brainfreeze method
-                var methodToFind = HarmonyPatchesVars.BrainFreezeMethod;
-
-                for (int i = 0; i < codes.Count - 1; i++)
-                {
-                    if ((codes[i].opcode == OpCodes.Call && //if it's a call to a virtual method
-                        codes[i].operand == methodToFind)) //and it's a call to BrainFreeze method
+                    var raw = Helpers.GetAdditiveNutritionProperties(__instance, slot);
+                    if (raw != null)
                     {
-                        // then we found it!
-                        brainFreezeIndex = i;
-                        break;
+                        float spoilMult = 1f - spoilState;
+                        foreach (var p in raw) p.Satiety *= spoilMult;
+                        addProps = raw;
                     }
                 }
-                if(brainFreezeIndex == -1)
+
+                __state = new State
                 {
-                    throw new Exception("Could not find call to BrainFreeze method. Aborting patch.");
-                }
+                    SatBefore    = hunger.GetFloat("currentsaturation"),
+                    MaxSat       = hunger.GetFloat("maxsaturation"),
+                    ExpectedSat  = expectedSat,
+                    FoodCategory = nutriProps.FoodCategory,
+                    AddProps     = addProps,
+                    Valid        = true
+                };
             }
-            if(brainFreezeIndex != -1)
+            catch (Exception ex)
             {
-                originalCallIndex = brainFreezeIndex;
+                ExpandedStomachModSystem.Logger.Error($"OmNomNomNomFooooood Prefix threw: {ex}");
             }
+        }
 
-            //now it's time to inject the call to GetNutrientsFromFoodType
-            var toInject = new List<CodeInstruction>
+        /// <summary>
+        /// After <c>tryEatStop</c> returns, absorb satiety overflow into the expanded stomach.
+        /// Uses an analytical headroom calculation (not a before/after delta) so BrainFreeze's
+        /// own saturation adjustments don't inflate the overflow figure.
+        /// Each EFACA additive category is credited separately; the base food overflow goes to
+        /// its own category. Health effects are entirely handled by the vanilla method and are
+        /// never touched here.
+        /// </summary>
+        public static void Postfix(EntityAgent byEntity, State __state)
+        {
+            try
             {
-                new CodeInstruction(OpCodes.Ldarg_0), //get this aka __instance
-                new CodeInstruction(OpCodes.Ldloc_0), //get the foodprops (local variable 0) ... again
-                new CodeInstruction(OpCodes.Ldarg_3), //load byEntity (argument 3) ... again
-                new CodeInstruction(OpCodes.Ldarg_2), //load itemStack (argument 2)
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "EatFoodIntoExpandedStomach")),
-            };
+                if (!__state.Valid) return;
 
-            codes.InsertRange(originalCallIndex + 1, toInject); //insert the code after receivesaturation
+                var hunger  = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
+                var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (hunger == null || stomach == null) return;
 
-            return codes.AsEnumerable();
-        } // <--- See Patch_EatingControl.cs>
+                // Overflow from base food: analytical headroom (not delta, so BrainFreeze's
+                // own adjustments stay in its lane and don't inflate our overflow figure).
+                float overflowSat = Math.Max(0f, __state.ExpectedSat - (__state.MaxSat - __state.SatBefore));
+
+                // EFACA additives go entirely to expanded stomach regardless of base headroom.
+                float efacaTotalSat = 0f;
+                if (__state.AddProps != null)
+                    foreach (var p in __state.AddProps) efacaTotalSat += p.Satiety;
+
+                float totalWanted = overflowSat + efacaTotalSat;
+                if (totalWanted <= 0.001f) return;
+
+                float stomachMeter  = stomach.GetFloat("expandedStomachMeter");
+                int   stomachSize   = stomach.GetInt("stomachSize");
+                float expandedAvail = (float)stomachSize - stomachMeter;
+                if (expandedAvail <= 0f) return;
+
+                float satToAbsorb = Math.Min(totalWanted, expandedAvail);
+                float scale        = satToAbsorb / totalWanted;
+
+                // Base food overflow → its own nutrition category.
+                if (overflowSat > 0.001f)
+                    Helpers.GetNutrientsFromFoodType(__state.FoodCategory, overflowSat * scale, byEntity);
+
+                // EFACA extras → each prop's own category (fixes old code that lumped them all
+                // into the base food's category).
+                if (__state.AddProps != null)
+                    foreach (var p in __state.AddProps)
+                        if (p.Satiety > 0.001f)
+                            Helpers.GetNutrientsFromFoodType(p.FoodCategory, p.Satiety * scale, byEntity);
+
+                stomach.SetFloat("expandedStomachMeter", stomachMeter + satToAbsorb);
+                byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                byEntity.ReceiveSaturation(0f, __state.FoodCategory);
+            }
+            catch (Exception ex)
+            {
+                ExpandedStomachModSystem.Logger.Error($"OmNomNomNomFooooood Postfix threw: {ex}");
+            }
+        }
     }
     #endregion
 
     #region EntityBehaviorBodyTemperature_OnGameTick
     public static class Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature
     {
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        private static readonly AccessTools.FieldRef<EntityBehaviorBodyTemperature, float> ClothingBonusRef =
+            AccessTools.FieldRefAccess<EntityBehaviorBodyTemperature, float>("clothingBonus");
+
+        public struct State
         {
-            var codes = new List<CodeInstruction>(instructions);
+            public float SnapshotBonus;
+            public float FatBonus;
+            public EntityBehaviorBodyTemperature Instance;
+            public bool Valid;
+        }
 
-            //Step 1: find call to getfloat
-            int originalCallIndex = -1; //set to -1 for now. Check to see if modified later.
-
-            for (int i = 2; i < codes.Count; i++)
+        /// <summary>
+        /// Before <c>updateBodyTemperature</c> runs, reads the fat meter from the expanded stomach
+        /// and adds a fat-based clothing bonus (up to +10 °C at 100% fat) to <c>clothingBonus</c>.
+        /// Snapshots the original value so the postfix can restore it precisely.
+        /// </summary>
+        public static void Prefix(EntityBehaviorBodyTemperature __instance, ref State __state)
+        {
+            try
             {
-                if (
-                    codes[i - 2].opcode == OpCodes.Ldloc_S && codes[i - 2].operand is LocalBuilder lb1 && lb1.LocalIndex == 7 &&
-                    codes[i - 1].opcode == OpCodes.Sub &&
-                    codes[i].opcode == OpCodes.Stloc_S && codes[i].operand is LocalBuilder lb2 && lb2.LocalIndex == 8
-                )
-                {
-                    // Inject after i (the stloc.s 13)
-                    originalCallIndex = i + 1;
-                    break;
-                }
+                __state = default;
+                ITreeAttribute stomachTree = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (stomachTree == null) return;
+                float fatMeter = stomachTree.GetFloat("fatMeter");
+                if (fatMeter <= 0f) return;
+                float fatBonus      = fatMeter * 10f;
+                float snapshotBonus = ClothingBonusRef(__instance);
+                ClothingBonusRef(__instance) = snapshotBonus + fatBonus;
+                __state = new State { SnapshotBonus = snapshotBonus, FatBonus = fatBonus, Instance = __instance, Valid = true };
             }
+            catch (Exception ex) { ExpandedStomachModSystem.Logger.Error($"Patch_EBBT Prefix threw: {ex}"); }
+        }
 
-
-
-            //if we didn't find it, abort with exception. We want the mod to crash and fail.
-            if (originalCallIndex == -1)
+        /// <summary>
+        /// After <c>updateBodyTemperature</c> returns, restores <c>clothingBonus</c> to whichever is
+        /// smaller: the snapshot taken in the prefix or the current value. This protects against
+        /// <c>updateWearableConditions</c> running between prefix and postfix and reducing the bonus
+        /// (e.g. the player removed a clothing item mid-tick).
+        /// </summary>
+        public static void Postfix(State __state)
+        {
+            try
             {
-                throw new Exception("Could not find location to inject code. Aborting body temperature patch.");
+                if (!__state.Valid) return;
+                float currentBonus = ClothingBonusRef(__state.Instance);
+                ClothingBonusRef(__state.Instance) = Math.Min(currentBonus, __state.SnapshotBonus);
             }
-
-            //insert code to custom method
-            var toInject = new List<CodeInstruction>
-            {
-                new CodeInstruction(OpCodes.Ldarg_0),
-                new CodeInstruction(OpCodes.Ldloc_S, 8),
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Helpers), "ModifyHereTemperature")),
-                new CodeInstruction(OpCodes.Stloc_S, 8)
-            };
-
-            codes.InsertRange(originalCallIndex, toInject);
-
-            return codes.AsEnumerable();
+            catch (Exception ex) { ExpandedStomachModSystem.Logger.Error($"Patch_EBBT Postfix threw: {ex}"); }
         }
     }
     #endregion
@@ -325,84 +737,54 @@ namespace ExpandedStomach.HarmonyPatches
     #region EntityBehaviorHunger_ReduceSaturation
     public static class Patch_EntityBehaviorHunger_ReduceSaturation
     {
-        public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator il)
+        /// <summary>
+        /// Intercepts <c>ReduceSaturation</c> before it touches the base hunger meter.
+        /// Drains the expanded stomach first using its own scaled formula (fat drawback + level scaling).
+        /// If the expanded stomach can cover the full loss, <paramref name="satLossMultiplier"/> is set
+        /// to zero so the original method drains nothing from base saturation.
+        /// If the expanded stomach runs dry, <paramref name="satLossMultiplier"/> is reduced
+        /// proportionally so the original method drains only the uncovered remainder.
+        /// Mirrors the original method's saturation-loss delay logic — no expanded stomach drain
+        /// occurs on ticks where any food category delay is still active.
+        /// </summary>
+        public static void Prefix(EntityBehaviorHunger __instance, ref float satLossMultiplier)
         {
-            var codes = new List<CodeInstruction>(instructions);
-
-            // Step 1: Find `if (prevSaturation > 0)` pattern
-            int originalIfStartIndex = -1;
-            int bleInstructionIndex = -1;
-
-            for (int i = 0; i < codes.Count - 2; i++)
+            try
             {
-                if ((codes[i].opcode == OpCodes.Ldloc_1) &&
-                    codes[i + 1].opcode == OpCodes.Ldc_R4 && (float)codes[i + 1].operand == 0f &&
-                    (codes[i + 2].opcode == OpCodes.Ble_Un_S))
-                {
-                    originalIfStartIndex = i;
-                    bleInstructionIndex = i + 2;
-                    break;
-                }
+                // Mirror the original method's isondelay logic: if any food category is still in
+                // its saturation-loss delay window, the original skips the base Saturation drain
+                // entirely. We match that — no expanded stomach drain on delay ticks either.
+                if (__instance.SaturationLossDelayFruit     > 0f ||
+                    __instance.SaturationLossDelayVegetable > 0f ||
+                    __instance.SaturationLossDelayProtein   > 0f ||
+                    __instance.SaturationLossDelayGrain     > 0f ||
+                    __instance.SaturationLossDelayDairy     > 0f) return;
+
+                var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
+                if (stomach == null) return;
+
+                float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
+                if (prevStomachSat <= 0f) return;
+
+                float expandedSatLoss = satLossMultiplier * 10f
+                    * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
+                var config = ExpandedStomachModSystem.sConfig;
+                expandedSatLoss *= (1f + stomach.GetFloat("fatMeter") * config.drawbackSeverity);
+                expandedSatLoss *= (1f + (prevStomachSat / 11000f)); // Drains up to 50% faster as expanded stomach gets full.
+
+                float actualDrained = Math.Min(prevStomachSat, expandedSatLoss);
+                stomach.SetFloat("expandedStomachMeter", prevStomachSat - actualDrained);
+                __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
+
+                // Scale base drain by the fraction that expanded stomach couldn't cover.
+                // Full coverage → satLossMultiplier = 0 (base unchanged).
+                // Partial coverage → satLossMultiplier proportionally reduced.
+                if (expandedSatLoss > 0f)
+                    satLossMultiplier *= Math.Max(0f, (expandedSatLoss - actualDrained) / expandedSatLoss);
+                else
+                    satLossMultiplier = 0f;
             }
-
-            if (originalIfStartIndex == -1)
-            {
-                ExpandedStomachModSystem.Logger.Warning("ExpandedStomach: Could not find original saturation check. Patch skipped.");
-                throw new Exception("ExpandedStomach: Could not find original saturation check.");
-            }
-
-            // Define label to jump to after our logic (i.e. skip original code)
-            Label skipOriginalIfBlock = il.DefineLabel();
-
-            // Assign that label to the instruction *after* the original if block's branch
-            int insertionPoint = originalIfStartIndex;
-
-            var targetlabel = (Label)codes[bleInstructionIndex].operand;
-
-            // Insert our call to CustomStomachLogic and conditional branch
-            var injected = new List<CodeInstruction>
-            {
-                new CodeInstruction(OpCodes.Ldarg_0), // __instance
-                new CodeInstruction(OpCodes.Ldarg_1), // satLossMultiplier
-                new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(CustomStomachLogic))),
-                new CodeInstruction(OpCodes.Brtrue_S, targetlabel) // If true, skip original hunger logic
-            };
-
-            codes.InsertRange(insertionPoint, injected);
-
-            return codes.AsEnumerable();
-        }
-
-        // This runs before the original hunger depletion logic
-        public static bool CustomStomachLogic(EntityBehaviorHunger __instance, float satLossMultiplier)
-        {
-            var stomach = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            if (stomach == null) { 
-                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find stomach attribute. No saturation loss.");
-                return false; 
-            }
-
-            float prevStomachSat = stomach.GetFloat("expandedStomachMeter");
-            if (prevStomachSat <= 0)
-            {
-                return false;
-            }
-
-            float satLoss = satLossMultiplier * 10f * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
-            var config = ExpandedStomachModSystem.sConfig;
-            satLoss *= (1 + stomach.GetFloat("fatMeter") * config.drawbackSeverity); // increase saturation loss by fat level percentage
-            satLoss *= (1 + (prevStomachSat / 11000f));
-            prevStomachSat = Math.Max(0f, prevStomachSat - satLoss);
-
-            stomach.SetFloat("expandedStomachMeter", prevStomachSat);
-            __instance.entity.WatchedAttributes.MarkPathDirty("expandedStomach");
-
-            var sprintCounterField = typeof(EntityBehaviorHunger).GetField("sprintCounter", BindingFlags.Instance | BindingFlags.NonPublic);
-            sprintCounterField?.SetValue(__instance, 0);
-
-            //ExpandedStomachModSystem.Logger.Debug($"ExpandedStomach: {satLoss} saturation was lost.");
-
-            return true;
+            catch (Exception ex) { ExpandedStomachModSystem.Logger.Error($"Patch_EBH Prefix threw: {ex}"); }
         }
     }
     #endregion
@@ -411,6 +793,12 @@ namespace ExpandedStomach.HarmonyPatches
     public static class Helpers
     {
         #region GetNutrientsFromMeal
+        /// <summary>
+        /// Credits each component of a multi-ingredient meal to its own food category in the
+        /// expanded stomach's nutrition tracking, scaled by <paramref name="servingsConsumed"/>.
+        /// Passes <c>wasMeal = true</c> to <see cref="GetNutrientsFromFoodType"/> so that
+        /// Hydrate or Diedrate's nutrition-deficit mechanic is applied where relevant.
+        /// </summary>
         public static void GetNutrientsFromMeal(FoodNutritionProperties[] foodprops, float servingsConsumed, EntityAgent byEntity)
         {
             foreach (var foodprop in foodprops)
@@ -420,150 +808,25 @@ namespace ExpandedStomach.HarmonyPatches
             }
             if (ExpandedStomachModSystem.EFACAactive)
             {
-                //nothing yet
+                ; // nothing yet. This is here as a bookmark for future expansion, just in case.
             }
-        }
-        #endregion
-
-        #region EatFoodIntoExpandedStomach
-        public static void EatFoodIntoExpandedStomach(CollectibleObject __instance, FoodNutritionProperties foodprops, EntityAgent byEntity, ItemSlot itemSlot = null)
-        {
-            float saturation = foodprops.Satiety;
-            FoodNutritionProperties[] addprops = null;
-            MethodInfo? method = typeof(CollectibleObject)
-                .GetMethod("UpdateAndGetTransitionState",
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-            TransitionState tState = (TransitionState)method.Invoke(__instance, new object?[] {byEntity.World, itemSlot, EnumTransitionType.Perish});
-            float spoilState = tState?.TransitionLevel ?? 0f;
-            float spoilStateMult = 1-spoilState;
-            //debugging
-            //addprops = GetAdditiveNutritionProperties(__instance, itemSlot, spoilState);
-            //enddebugging
-            if (ExpandedStomachModSystem.EFACAactive)
-            {
-                addprops = GetAdditiveNutritionProperties(__instance, itemSlot, spoilState);
-            }
-            if (addprops != null)
-            {
-                foreach(FoodNutritionProperties addprop in addprops)
-                {
-                    saturation += addprop.Satiety * spoilStateMult;
-                }
-            }
-            //get difference between how much we could hold and how much we want to eat
-            float diff = 0f;
-            var hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
-            var stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            var satdiff = hunger.GetFloat("maxsaturation") - stomach.GetFloat("satietyBeforeEating");
-            diff = saturation - satdiff;
-            if (diff < 0f) { diff = 0f; }
-            //calculate saturation we can absorb based on stomach size - capacity
-            int stomachsize = stomach.GetInt("stomachSize");
-            float stomachcapacity = stomach.GetFloat("expandedStomachMeter");
-            float saturationAvailable = (float)stomachsize - stomachcapacity;
-            
-            if(diff > 0f)
-            {
-                //allow to eat into expanded stomach
-                if (saturationAvailable > diff)
-                {
-                    //we ate it all. add saturation to stomachcap and write it back
-                    stomachcapacity += diff;
-                    stomach.SetFloat("expandedStomachMeter", stomachcapacity);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                }
-                else
-                {
-                    //we didn't eat it all. stomachcap = stomachsize
-                    diff = ((float)stomachsize - stomachcapacity);
-                    stomachcapacity = (float)stomachsize;
-                    stomach.SetFloat("expandedStomachMeter", stomachcapacity);
-                    byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                }
-                GetNutrientsFromFoodType(foodprops.FoodCategory, diff, byEntity);
-            }
-            byEntity.ReceiveSaturation(0, foodprops.FoodCategory);
-        }
-        #endregion
-
-        #region EatMealIntoExpandedStomach
-        public static float EatMealIntoExpandedStomach(BlockMeal __instance, ItemSlot slot, float servingsLeft, EntityAgent byEntity)
-        {
-            ICoreAPI api = Traverse.Create(__instance).Field("api").GetValue<ICoreAPI>();
-            FoodNutritionProperties[]? multiProps = __instance.GetContentNutritionProperties(byEntity.World, slot, byEntity);            
-
-            // get remaining sat from servingsleft and total meal sat and fill expandable stomach
-            float mealbaseSat = 0f;
-            float mealremSat = 0f;
-            foreach (var prop in multiProps)
-            {
-                mealbaseSat += prop.Satiety;
-            }
-            mealremSat = servingsLeft * mealbaseSat;
-
-            // get expandable stomach properties
-            ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            ITreeAttribute hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");
-            int stomachsize = stomach.GetInt("stomachSize");
-            float stomachsat = stomach.GetFloat("expandedStomachMeter");
-            float currentsaturation = hunger.GetFloat("currentsaturation");
-            float maxsaturation = hunger.GetFloat("maxsaturation");
-
-            //patch weird hunger issue
-            if (currentsaturation.between(maxsaturation - 0.1f, maxsaturation))
-            {
-                currentsaturation = maxsaturation;
-                hunger.SetFloat("currentsaturation", currentsaturation);
-                byEntity.WatchedAttributes.MarkPathDirty("hunger");
-            }
-
-            //check last time we ate because this fires twice for some reason I don't understand why
-            float timeLastEat = byEntity.WatchedAttributes.GetFloat("timeLastEat");
-            float eatWindow = api.World.ElapsedMilliseconds - timeLastEat;
-            if(currentsaturation == maxsaturation)
-            {
-                if (eatWindow < 15000 && eatWindow > 1000) //if it's between 1s and 15s after last eat
-                {
-                    timeLastEat = api.World.ElapsedMilliseconds;
-                    byEntity.WatchedAttributes.SetFloat("timeLastEat", timeLastEat);
-                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
-                    // fill stomach
-                    if (stomachsize - stomachsat >= mealremSat)
-                    {
-                        //we ate it all :)
-                        Helpers.GetNutrientsFromMeal(multiProps, servingsLeft, byEntity);
-                        servingsLeft = 0;
-                        stomachsat += mealremSat;
-                        stomach.SetFloat("expandedStomachMeter", stomachsat);
-                        byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                    }
-                    else
-                    {
-                        //we were a wimp and couldn't eat it all
-                        servingsLeft -= (stomachsize - stomachsat) / mealbaseSat;
-                        Helpers.GetNutrientsFromMeal(multiProps, servingsLeft, byEntity);
-                        stomachsat = stomachsize;
-                        stomach.SetFloat("expandedStomachMeter", stomachsat);
-                        byEntity.WatchedAttributes.MarkPathDirty("expandedStomach");
-                    }
-                }
-                else
-                {
-                    timeLastEat = api.World.ElapsedMilliseconds;
-                    byEntity.WatchedAttributes.SetFloat("timeLastEat", timeLastEat);
-                    byEntity.WatchedAttributes.MarkPathDirty("timeLastEat");
-                }
-                byEntity.ReceiveSaturation(0, multiProps[0].FoodCategory);
-            }
-
-            return servingsLeft;
         }
         #endregion
 
         #region GetAdditiveNutritionProperties
-        private static FoodNutritionProperties[] GetAdditiveNutritionProperties(CollectibleObject __instance, ItemSlot slot, float spoilState)
+        /// <summary>
+        /// Reads EFACA/ACA <c>expandedSats</c> float-array attributes from the item stack and
+        /// returns one <see cref="FoodNutritionProperties"/> entry per non-zero category.
+        /// Satiety values are pre-multiplied by the collectible's <c>satMult</c> attribute.
+        /// The caller is responsible for applying the spoilage multiplier <c>(1 - spoilState)</c>
+        /// before passing the results to <see cref="GetNutrientsFromFoodType"/>.
+        /// Health values (<c>exSats[0]</c>) are stored on the returned props but are never
+        /// converted to satiety — vanilla health effects are handled by the base method.
+        /// Returns <c>null</c> if the item has no <c>expandedSats</c> attribute or fewer than
+        /// six entries.
+        /// </summary>
+        internal static FoodNutritionProperties[] GetAdditiveNutritionProperties(CollectibleObject __instance, ItemSlot slot)
         {
-            // get additional nutrition properties
             float SatMult = __instance.Attributes?["satMult"].AsFloat(1f) ?? 1f;
             FloatArrayAttribute additiveNutrients = slot.Itemstack.Attributes["expandedSats"] as FloatArrayAttribute;
             float[] exSats = additiveNutrients?.value;
@@ -572,7 +835,7 @@ namespace ExpandedStomach.HarmonyPatches
             for (int i = 1; i <= 5; i++)
             {
                 if (exSats[i] != 0)
-                    props.Add(new() { FoodCategory = (EnumFoodCategory)(i-1), Satiety = exSats[i] * SatMult});
+                    props.Add(new() { FoodCategory = (EnumFoodCategory)(i - 1), Satiety = exSats[i] * SatMult });
             }
             if (exSats[0] != 0 && props.Count > 0) props[0].Health = exSats[0] * SatMult;
             return props.ToArray();
@@ -580,6 +843,21 @@ namespace ExpandedStomach.HarmonyPatches
         #endregion
 
         #region GetNutrientsFromFoodType
+        /// <summary>
+        /// Credits <paramref name="saturationConsumed"/> satiety to the appropriate food-category
+        /// level (fruit, vegetable, protein, grain, dairy) in the hunger WatchedAttribute tree,
+        /// scaled by difficulty. Only runs when the base hunger meter is at or near its maximum —
+        /// this method exists solely to credit nutrition for food absorbed into the expanded stomach
+        /// after the base is full.
+        /// <para>
+        /// <paramref name="wasMeal"/> enables Hydrate or Diedrate's nutrition-deficit reduction for
+        /// meal ingredients; pass <c>false</c> for individual food items and liquids.
+        /// </para>
+        /// <para>
+        /// <see cref="EnumFoodCategory.Unknown"/> is handled gracefully — the method returns without
+        /// updating any category, which is the correct behaviour for category-less liquids such as water.
+        /// </para>
+        /// </summary>
         public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity, bool wasMeal = false)
         {
             // get expandable stomach properties
@@ -689,18 +967,6 @@ namespace ExpandedStomach.HarmonyPatches
         }
         #endregion
 
-        #region ModifyHereTemperature
-        public static float ModifyHereTemperature(EntityBehaviorBodyTemperature __instance, float hereTemp)
-        {
-            float bodyTempOffset = 0f;
-            float fatlevel = 0f;
-            ITreeAttribute stomachtree = __instance.entity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            if(stomachtree != null)
-                fatlevel = stomachtree.GetFloat("fatMeter");
-            bodyTempOffset = (fatlevel) * 10f; //full fat is +20 degrees C and minus 40% movement speed by default
-            return hereTemp + bodyTempOffset;
-        }
-        #endregion
     }
     #endregion
 
