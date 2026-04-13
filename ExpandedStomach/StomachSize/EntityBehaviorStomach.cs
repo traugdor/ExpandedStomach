@@ -40,8 +40,8 @@ namespace ExpandedStomach
         private static readonly Random rand = new Random();
 
         // Stomach size bounds
-        private const int   MinStomachSize          = 500;
-        private const int   MaxStomachSize          = 5500;
+        private  const int MinStomachSize =  500;
+        internal const int MaxStomachSize = 5500;
 
         // Movement penalty
         private const float MaxMovementPenalty      = 0.4f;

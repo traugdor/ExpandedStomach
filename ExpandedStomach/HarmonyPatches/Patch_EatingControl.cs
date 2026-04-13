@@ -18,7 +18,6 @@ namespace ExpandedStomach.HarmonyPatches
     public static class HarmonyPatchesVars
     {
         public static bool BrainFreezeInstalled = false;
-        public static MethodInfo BrainFreezeMethod = null;
         public static bool IthaniaCannedGoodsInstalled = false;
     }
 
@@ -30,33 +29,49 @@ namespace ExpandedStomach.HarmonyPatches
         /// </summary>
         public static void ApplyServerPatches(Harmony harmony)
         {
-            // tryFinishEatMeal
-            MethodInfo tryFEM        = AccessTools.Method(typeof(BlockMeal), "tryFinishEatMeal");
-            MethodInfo tryFEMPrefix  = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Prefix));
-            MethodInfo tryFEMPostfix = AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Postfix));
-            harmony.Patch(tryFEM, prefix: new HarmonyMethod(tryFEMPrefix), postfix: new HarmonyMethod(tryFEMPostfix));
-            // liquid tryEatStop
-            MethodInfo tryeatstopLiquid          = AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
-            MethodInfo tryeatstopLiquidPrefix    = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Prefix));
-            MethodInfo tryeatstopLiquidPostfix   = AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Postfix));
-            harmony.Patch(tryeatstopLiquid, prefix: new HarmonyMethod(tryeatstopLiquidPrefix), postfix: new HarmonyMethod(tryeatstopLiquidPostfix));
-            // food tryEatStop
-            MethodInfo tryeatstopCO        = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
-            MethodInfo tryeatstopCOPrefix  = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Prefix));
-            MethodInfo tryeatstopCOPostfix = AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Postfix));
-            var tesCOP  = new HarmonyMethod(tryeatstopCOPrefix)  { priority = Priority.Last };
-            var tesCOPF = new HarmonyMethod(tryeatstopCOPostfix) { priority = Priority.Last };
-            harmony.Patch(tryeatstopCO, prefix: tesCOP, postfix: tesCOPF);
-            // EBBTemperature OnGameTick
-            MethodInfo EBBTonGameTick        = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
-            MethodInfo EBBTonGameTickPrefix  = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Prefix));
-            MethodInfo EBBTonGameTickPostfix = AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Postfix));
-            harmony.Patch(EBBTonGameTick, prefix: new HarmonyMethod(EBBTonGameTickPrefix), postfix: new HarmonyMethod(EBBTonGameTickPostfix));
-            // EBHunger ReduceSaturation
-            MethodInfo EBHRedSat        = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
-            MethodInfo EBHRedSatPrefix  = AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Prefix));
-            var EBHRedSatPHM = new HarmonyMethod(EBHRedSatPrefix) { priority = Priority.Last };
-            harmony.Patch(EBHRedSat, prefix: EBHRedSatPHM);
+            // tryFinishEatMeal (BlockMeal → expanded stomach overflow after bowl meals)
+            var tryFEM = AccessTools.Method(typeof(BlockMeal), "tryFinishEatMeal");
+            if (tryFEM == null)
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find BlockMeal.tryFinishEatMeal — meal overflow patch skipped.");
+            else
+                harmony.Patch(tryFEM,
+                    prefix:  new HarmonyMethod(AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Prefix))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(YeahBoiScrapeThatBowl), nameof(YeahBoiScrapeThatBowl.Postfix))));
+
+            // tryEatStop (BlockLiquidContainerBase → expanded stomach overflow after drinking)
+            var tryeatstopLiquid = AccessTools.Method(typeof(BlockLiquidContainerBase), "tryEatStop");
+            if (tryeatstopLiquid == null)
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find BlockLiquidContainerBase.tryEatStop — liquid overflow patch skipped.");
+            else
+                harmony.Patch(tryeatstopLiquid,
+                    prefix:  new HarmonyMethod(AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Prefix))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(DrinkUpMyFriend), nameof(DrinkUpMyFriend.Postfix))));
+
+            // tryEatStop (CollectibleObject → expanded stomach overflow after eating food items)
+            var tryeatstopCO = AccessTools.Method(typeof(CollectibleObject), "tryEatStop");
+            if (tryeatstopCO == null)
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find CollectibleObject.tryEatStop — food item overflow patch skipped.");
+            else
+                harmony.Patch(tryeatstopCO,
+                    prefix:  new HarmonyMethod(AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Prefix)))  { priority = Priority.Last },
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(OmNomNomNomFooooood), nameof(OmNomNomNomFooooood.Postfix))) { priority = Priority.Last });
+
+            // updateBodyTemperature (EntityBehaviorBodyTemperature → fat-based temperature resistance)
+            var EBBTonGameTick = AccessTools.Method(typeof(EntityBehaviorBodyTemperature), "updateBodyTemperature");
+            if (EBBTonGameTick == null)
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find EntityBehaviorBodyTemperature.updateBodyTemperature — fat temperature patch skipped.");
+            else
+                harmony.Patch(EBBTonGameTick,
+                    prefix:  new HarmonyMethod(AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Prefix))),
+                    postfix: new HarmonyMethod(AccessTools.Method(typeof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature), nameof(Patch_EntityBehaviorBodyTemperature_UpdateBodyTemperature.Postfix))));
+
+            // ReduceSaturation (EntityBehaviorHunger → drain expanded stomach before base saturation)
+            var EBHRedSat = AccessTools.Method(typeof(EntityBehaviorHunger), "ReduceSaturation");
+            if (EBHRedSat == null)
+                ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find EntityBehaviorHunger.ReduceSaturation — expanded stomach drain patch skipped.");
+            else
+                harmony.Patch(EBHRedSat,
+                    prefix: new HarmonyMethod(AccessTools.Method(typeof(Patch_EntityBehaviorHunger_ReduceSaturation), nameof(Patch_EntityBehaviorHunger_ReduceSaturation.Prefix))) { priority = Priority.Last });
 
             // Ithania Canned Goods
             if (HarmonyPatchesVars.IthaniaCannedGoodsInstalled)
@@ -65,20 +80,19 @@ namespace ExpandedStomach.HarmonyPatches
                 // calls as the interaction-stop entry point. It then calls OnHeldInteractStop via
                 // virtual dispatch. ICG does NOT override OnHeldUseStop, so this vanilla body
                 // always executes, giving us a reliable pre/post that wraps EatFromCan entirely.
-                var onHeldUseStop  = AccessTools.Method(typeof(CollectibleObject), "OnHeldUseStop");
+                var onHeldUseStop = AccessTools.Method(typeof(CollectibleObject), "OnHeldUseStop");
                 if (onHeldUseStop == null)
                 {
                     ExpandedStomachModSystem.Logger.Error("ExpandedStomach: Could not find CollectibleObject.OnHeldUseStop — ICG compatibility patch skipped.");
                 }
                 else
                 {
-                    var efcPrefix  = AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Prefix));
-                    var efcPostfix = AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Postfix));
-                    harmony.Patch(onHeldUseStop, prefix: new HarmonyMethod(efcPrefix), postfix: new HarmonyMethod(efcPostfix));
+                    harmony.Patch(onHeldUseStop,
+                        prefix:  new HarmonyMethod(AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Prefix))),
+                        postfix: new HarmonyMethod(AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Postfix))));
                     ExpandedStomachModSystem.Logger.Notification("ExpandedStomach: IthaniaCannedGoods compatibility patch applied successfully.");
                 }
             }
-            // DONE!
         }
     }
 
@@ -123,7 +137,8 @@ namespace ExpandedStomach.HarmonyPatches
                 if (byEntity.World.Side != EnumAppSide.Server) return;
                 if (byEntity.Controls.Sneak) return;
                 if (secondsPassed < 1.9f) return;
-                if (slot?.Itemstack?.Collectible?.Code?.Path?.StartsWith("can-opened") != true) return;
+                var code = slot?.Itemstack?.Collectible?.Code;
+                if (code?.Domain != "ithaniacannedgoods" || code.Path?.StartsWith("can-opened") != true) return;
 
                 float servings = slot.Itemstack.Attributes.GetFloat("quantityServings");
                 if (servings <= 0f) return;
@@ -194,6 +209,9 @@ namespace ExpandedStomach.HarmonyPatches
                                     ? 0f
                                     : slot!.Itemstack.Attributes.GetFloat("quantityServings");
 
+                // ICG caps each eat interaction at 1 serving (Math.Min(1f, num) in EatFromCan).
+                // We mirror that cap here so expanded stomach also only absorbs up to 1 serving
+                // worth of overflow per interaction, regardless of how many servings the can holds.
                 float portionBefore   = Math.Min(1f, __state.ServingsBefore);
                 float baseConsumed    = __state.ServingsBefore - servingsNow;
                 float expandedPortion = portionBefore - baseConsumed;
@@ -770,7 +788,8 @@ namespace ExpandedStomach.HarmonyPatches
                     * ExpandedStomachModSystem.serverapi.World.Config.GetFloat("ExpandedStomach.stomachSatLossMultiplier");
                 var config = ExpandedStomachModSystem.sConfig;
                 expandedSatLoss *= (1f + stomach.GetFloat("fatMeter") * config.drawbackSeverity);
-                expandedSatLoss *= (1f + (prevStomachSat / 11000f)); // Drains up to 50% faster as expanded stomach gets full.
+                // At MaxStomachSize the multiplier is 0.5 (50% faster drain). Divisor = MaxStomachSize * 2.
+                expandedSatLoss *= (1f + (prevStomachSat / (EntityBehaviorStomach.MaxStomachSize * 2f)));
 
                 float actualDrained = Math.Min(prevStomachSat, expandedSatLoss);
                 stomach.SetFloat("expandedStomachMeter", prevStomachSat - actualDrained);
@@ -860,10 +879,8 @@ namespace ExpandedStomach.HarmonyPatches
         /// </summary>
         public static void GetNutrientsFromFoodType(EnumFoodCategory foodCat, float saturationConsumed, EntityAgent byEntity, bool wasMeal = false)
         {
-            // get expandable stomach properties
             ITreeAttribute stomach = byEntity.WatchedAttributes.GetTreeAttribute("expandedStomach");
-            int stomachsize = stomach.GetInt("stomachSize");
-            float stomachsat = stomach.GetFloat("expandedStomachMeter");
+            if (stomach == null) return;
             bool hodactive = ExpandedStomachModSystem.HoDactive;
 
             ITreeAttribute hunger = byEntity.WatchedAttributes.GetTreeAttribute("hunger");

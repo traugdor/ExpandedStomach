@@ -2,7 +2,6 @@
 using ExpandedStomach.Hud;
 using HarmonyLib;
 using System;
-using System.Reflection;
 using System.Text;
 using Vintagestory;
 using Vintagestory.API.Client;
@@ -109,23 +108,11 @@ public class ExpandedStomachModSystem : ModSystem
         Mod.Logger.Notification("Hello: " + Lang.Get("expandedstomach:hello"));
         if (!serverPatched)
         {
-            // Detect Brainfreeze
+            // Detect BrainFreeze — we handle compatibility analytically so no method lookup needed.
             if (api.ModLoader.IsModEnabled("brainfreeze"))
             {
-                Mod.Logger.Notification("Brain Freeze detected (server-side).");
                 HarmonyPatchesVars.BrainFreezeInstalled = true;
-                var type = Type.GetType(
-                    "BrainFreeze.Code.HarmonyPatches.FrozenInteractions.Consumption.AddTemperaturePenalty, BrainFreeze"
-                );
-                if (type == null)
-                {
-                    api.Logger.Error("Could not find AddTemperaturePenalty type in Brainfreeze.");
-                    return;
-                }
-                HarmonyPatchesVars.BrainFreezeMethod = type.GetMethod(
-                    "ApplyPenalty",
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
-                );
+                Mod.Logger.Notification("Brain Freeze detected (server-side).");
             }
             //detect expanded foods/A Culinary Artillery
             if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
