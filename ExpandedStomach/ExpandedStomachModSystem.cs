@@ -2,7 +2,6 @@
 using ExpandedStomach.Hud;
 using HarmonyLib;
 using System;
-using System.Reflection;
 using System.Text;
 using Vintagestory;
 using Vintagestory.API.Client;
@@ -28,6 +27,7 @@ public class ExpandedStomachModSystem : ModSystem
 
     public static bool AdjustBarLocation { get; private set; }
     public static bool EFACAactive { get; private set; }
+    public static bool HoDactive { get; private set; }
     public static HudESBar hudESBar;
     Harmony sHarmony;
     Harmony cHarmony;
@@ -108,27 +108,28 @@ public class ExpandedStomachModSystem : ModSystem
         Mod.Logger.Notification("Hello: " + Lang.Get("expandedstomach:hello"));
         if (!serverPatched)
         {
-            // Detect Brainfreeze
+            // Detect BrainFreeze — we handle compatibility analytically so no method lookup needed.
             if (api.ModLoader.IsModEnabled("brainfreeze"))
             {
                 HarmonyPatchesVars.BrainFreezeInstalled = true;
-                var type = Type.GetType(
-                    "BrainFreeze.Code.HarmonyPatches.FrozenInteractions.Consumption.AddTemperaturePenalty, BrainFreeze"
-                );
-                if (type == null)
-                {
-                    api.Logger.Error("Could not find AddTemperaturePenalty type in Brainfreeze.");
-                    return;
-                }
-                HarmonyPatchesVars.BrainFreezeMethod = type.GetMethod(
-                    "ApplyPenalty",
-                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
-                );
+                Mod.Logger.Notification("Brain Freeze detected (server-side).");
             }
             //detect expanded foods/A Culinary Artillery
             if (api.ModLoader.IsModEnabled("expandedfoods") || api.ModLoader.IsModEnabled("aculinaryartillery"))
             {
                 EFACAactive = true;
+                Mod.Logger.Notification("Expanded Foods/A Culinary Artillery detected (server-side).");
+            }
+            //detect Hydrate or Diedrate
+            if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
+            {
+                HoDactive = true;
+                Mod.Logger.Notification("Hydrate or Diedrate detected (server-side).");
+            }
+            if (api.ModLoader.IsModEnabled("ithaniacannedgoods"))
+            {
+                HarmonyPatchesVars.IthaniaCannedGoodsInstalled = true;
+                Mod.Logger.Notification("Ithania Canned Goods detected (server-side).");
             }
             ServerPatcher.ApplyServerPatches(sHarmony);
             Patch_HungerDamageTicks.ApplyCorePatches(sHarmony);
@@ -161,6 +162,7 @@ public class ExpandedStomachModSystem : ModSystem
             if (api.ModLoader.IsModEnabled("hydrateordiedrate"))
             {
                 AdjustBarLocation = true;
+                HoDactive = true;
                 Mod.Logger.Notification("Hydrate or Diedrate detected.");
             }
             if (api.ModLoader.IsModEnabled("vigor"))
