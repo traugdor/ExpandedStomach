@@ -1,25 +1,24 @@
-﻿using HarmonyLib;
-using System.Reflection;
-using Vintagestory.API.Client;
-using Vintagestory.API.Common;
-using Vintagestory.API.Config;
-using Vintagestory.API.Server;
-using Vintagestory.GameContent;
+using HarmonyLib;
 using System;
-using Vintagestory.Server;
 using System.Collections.Generic;
-using System.Reflection.Emit;
 using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
+using Vintagestory.API.Common;
+using Vintagestory.API.Server;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace HungryWhileInjured
 {
     public class HungryWhileInjuredModSystem : ModSystem
     {
         private static bool patched = false;
-        ICoreServerAPI theMod;
         private static ILogger ModLogger;
         private static bool es = false;
+
+        private static readonly AccessTools.FieldRef<EntityBehaviorHunger, float> HungerCounterRef =
+            AccessTools.FieldRefAccess<EntityBehaviorHunger, float>("hungerCounter");
 
         public override void StartPre(ICoreAPI api)
         {
@@ -28,11 +27,8 @@ namespace HungryWhileInjured
 
         public override void StartServerSide(ICoreServerAPI api)
         {
-            theMod = api;
             ModLogger = Mod.Logger;
-            Mod.Logger.Notification("Patching serverside...");
 
-            //detect Expanded Stomach mod
             if (api.ModLoader.IsModEnabled("expandedstomach"))
             {
                 es = true;
@@ -40,50 +36,59 @@ namespace HungryWhileInjured
 
             if (!patched)
             {
-                //prefix EntityBehaviorHunger.ReducedSaturation with harmony
                 var h = new Harmony("HungerPatcher");
-                Mod.Logger.Notification("Getting ReduceSaturation method...");
-                MethodInfo ReduceSaturationMethod = typeof(EntityBehaviorHunger).GetMethod("ReduceSaturation", 
+
+                MethodInfo reduceSaturation = typeof(EntityBehaviorHunger).GetMethod("ReduceSaturation",
                     BindingFlags.NonPublic | BindingFlags.Instance);
-                Mod.Logger.Notification("Generating links to pre/post fix methods...");
-                HarmonyMethod prefix = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ReduceSaturationPrefix), 
-                    BindingFlags.NonPublic | BindingFlags.Static));
-                HarmonyMethod postfix = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ReduceSaturationPostfix), 
-                    BindingFlags.NonPublic | BindingFlags.Static));
-                Mod.Logger.Notification("Patching...");
-                h.Patch(ReduceSaturationMethod, prefix: prefix, postfix: postfix);
-                Mod.Logger.Notification("Getting ApplyRegenAndHunger method...");
-                MethodInfo ApplyRegenAndHungerMethod = typeof(EntityBehaviorHealth).GetMethod("ApplyRegenAndHunger", 
-                    BindingFlags.NonPublic | BindingFlags.Instance );
-                Mod.Logger.Notification("Generating link to patch method...");
-                HarmonyMethod patch = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ApplyRegenAndHungerPatch),
-                    BindingFlags.NonPublic | BindingFlags.Static));
-                Mod.Logger.Notification("Patching...");
-                h.Patch(ApplyRegenAndHungerMethod, transpiler: patch);
-                Mod.Logger.Notification("Done!");
+                if (reduceSaturation == null)
+                {
+                    Mod.Logger.Error("HungryWhileInjured: could not find EntityBehaviorHunger.ReduceSaturation — hunger counter patch skipped.");
+                }
+                else
+                {
+                    HarmonyMethod prefix  = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ReduceSaturationPrefix),  BindingFlags.NonPublic | BindingFlags.Static));
+                    HarmonyMethod postfix = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ReduceSaturationPostfix), BindingFlags.NonPublic | BindingFlags.Static));
+                    h.Patch(reduceSaturation, prefix: prefix, postfix: postfix);
+                }
+
+                MethodInfo applyRegenAndHunger = typeof(EntityBehaviorHealth).GetMethod("ApplyRegenAndHunger",
+                    BindingFlags.NonPublic | BindingFlags.Instance);
+                if (applyRegenAndHunger == null)
+                {
+                    Mod.Logger.Error("HungryWhileInjured: could not find EntityBehaviorHealth.ApplyRegenAndHunger — nutrition regen boost patch skipped.");
+                }
+                else
+                {
+                    HarmonyMethod patch = new HarmonyMethod(typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ApplyRegenAndHungerPatch), BindingFlags.NonPublic | BindingFlags.Static));
+                    h.Patch(applyRegenAndHunger, transpiler: patch);
+                }
+
                 patched = true;
+                Mod.Logger.Notification("HungryWhileInjured patched!");
             }
             else
             {
-                Mod.Logger.Notification("Already patched!");
+                Mod.Logger.Notification("HungryWhileInjured already patched.");
             }
         }
 
-        private static bool ReduceSaturationPrefix(EntityBehaviorHunger __instance, float satLossMultiplier, out EntityBehaviorHunger __state)
+        /// <summary>
+        /// Snapshots the hunger counter before <c>ReduceSaturation</c> runs so that the
+        /// postfix can restore it, preventing health regen from resetting the counter and
+        /// blocking normal hunger drain ticks.
+        /// </summary>
+        private static bool ReduceSaturationPrefix(EntityBehaviorHunger __instance, out float __state)
         {
-            __state = __instance;
-
+            __state = HungerCounterRef(__instance);
             return true;
         }
 
-        private static void ReduceSaturationPostfix(EntityBehaviorHunger __instance, EntityBehaviorHunger __state)
+        /// <summary>
+        /// Restores the hunger counter to the value captured in the prefix.
+        /// </summary>
+        private static void ReduceSaturationPostfix(EntityBehaviorHunger __instance, float __state)
         {
-            //get hungercounter from __state using reflection
-            FieldInfo hungerCounterField = typeof(EntityBehaviorHunger).GetField("hungerCounter", BindingFlags.NonPublic | BindingFlags.Instance);
-            float stateHC = (float)hungerCounterField.GetValue(__state);
-
-            //set hungercounter to __instance using reflection
-            hungerCounterField.SetValue(__instance, stateHC);
+            HungerCounterRef(__instance) = __state;
         }
 
         private static IEnumerable<CodeInstruction> ApplyRegenAndHungerPatch(IEnumerable<CodeInstruction> instructions, ILGenerator il)
@@ -92,14 +97,14 @@ namespace HungryWhileInjured
 
             int index = 0;
 
-            //find call to GameMath.Clamp that stores into stloc.3
-            for (int i = 0; i < codes.Count-1; i++) //stop before last since we're comparing i+1 as well
+            // Find the call to GameMath.Clamp followed by stloc.3, which stores the final regen amount.
+            for (int i = 0; i < codes.Count - 1; i++)
             {
-                if (codes[i].opcode == OpCodes.Call 
+                if (codes[i].opcode == OpCodes.Call
                     && (MethodInfo)codes[i].operand == typeof(GameMath).GetMethod("Clamp", [typeof(float), typeof(float), typeof(float)])
                     && codes[i + 1].opcode == OpCodes.Stloc_3)
                 {
-                    index = i+1; // index is the index of the stloc.3. We are injecting after it.
+                    index = i + 1;
                     break;
                 }
             }
@@ -108,58 +113,50 @@ namespace HungryWhileInjured
                 index++;
                 var inject = new List<CodeInstruction>
                 {
-                    new CodeInstruction(OpCodes.Ldarg_0) //load __instance
-                    , new CodeInstruction(OpCodes.Ldloc_3) //load local var 3
-                    , new CodeInstruction(OpCodes.Ldloc, 6) //load local var 6 (hungerBehavior)
-                    , new CodeInstruction(OpCodes.Call, typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ApplyNutritionToRegenBoost), BindingFlags.NonPublic | BindingFlags.Static)) //get boosted amount
-                    , new CodeInstruction(OpCodes.Stloc_3) //store back into local var 3
+                    new CodeInstruction(OpCodes.Ldarg_0),
+                    new CodeInstruction(OpCodes.Ldloc_3),
+                    new CodeInstruction(OpCodes.Ldloc, 6),
+                    new CodeInstruction(OpCodes.Call, typeof(HungryWhileInjuredModSystem).GetMethod(nameof(ApplyNutritionToRegenBoost), BindingFlags.NonPublic | BindingFlags.Static)),
+                    new CodeInstruction(OpCodes.Stloc_3)
                 };
                 codes.InsertRange(index, inject);
             }
             else
             {
-                throw new Exception("Could not find location to inject code. Aborting Patch.");
+                throw new Exception("HungryWhileInjured: could not find injection point in ApplyRegenAndHunger — aborting transpiler patch.");
             }
             return codes.AsEnumerable();
         }
 
+        /// <summary>
+        /// Scales the health regen amount upward based on the player's current nutrition levels
+        /// and, if Expanded Stomach is installed, their current stomach size.
+        /// </summary>
         private static float ApplyNutritionToRegenBoost(EntityBehaviorHealth __instance, float healthRegenPerGameSecond, EntityBehaviorHunger hungerBehavior)
         {
-            float boostedRegen = healthRegenPerGameSecond;
-            
-            // Inside the ApplyNutritionToRegenBoost method
-            if (hungerBehavior != null) 
+            if (hungerBehavior == null)
+                return healthRegenPerGameSecond;
+
+            float fruitBoost    = hungerBehavior.FruitLevel      / 1500f;
+            float vegBoost      = hungerBehavior.VegetableLevel  / 1500f;
+            float proteinBoost  = hungerBehavior.ProteinLevel    / 1500f;
+            float grainBoost    = hungerBehavior.GrainLevel      / 1500f;
+            float dairyBoost    = hungerBehavior.DairyLevel      / 1500f;
+
+            float boostAmount = (fruitBoost + vegBoost + proteinBoost + grainBoost + dairyBoost) / 100f;
+
+            if (es)
             {
-                float fruitBoost = hungerBehavior.FruitLevel / 1500f;
-                float vegBoost = hungerBehavior.VegetableLevel / 1500f;
-                float proteinBoost = hungerBehavior.ProteinLevel / 1500f;
-                float grainBoost = hungerBehavior.GrainLevel / 1500f;
-                float dairyBoost = hungerBehavior.DairyLevel / 1500f;
-
-                float boostAmount = (fruitBoost + vegBoost + proteinBoost + grainBoost + dairyBoost) / 100f;
-    
-                // Check if Expanded Stomach mod is enabled
-                if (es)
+                var entity = hungerBehavior.entity as EntityPlayer;
+                var stomachBehavior = entity?.GetBehavior("expandedStomach");
+                if (stomachBehavior != null)
                 {
-                    // Try to get the stomach size from the entity
-                    var entity = hungerBehavior.entity as EntityPlayer;
-                    // Use reflection to find the EntityBehaviorStomach
-                    var stomachType = Type.GetType("ExpandedStomach.EntityBehaviorStomach, ExpandedStomach");
-                    var stomachBehavior = entity.GetBehavior("expandedStomach");
-
-                    if (stomachBehavior != null)
-                    {
-                        float stomachSize = stomachBehavior.GetType().GetProperty("StomachSize")?.GetValue(stomachBehavior) as float? ?? 0f;
-                        float stomachBoost = stomachSize / 5000f;
-                        boostAmount += stomachBoost;
-                        Console.WriteLine("Added {0} to health.", boostAmount);
-                    }
+                    float stomachSize = stomachBehavior.GetType().GetProperty("StomachSize")?.GetValue(stomachBehavior) as float? ?? 0f;
+                    boostAmount += stomachSize / 5000f;
                 }
-    
-                boostedRegen = healthRegenPerGameSecond * (1f + boostAmount);
             }
 
-            return boostedRegen;
+            return healthRegenPerGameSecond * (1f + boostAmount);
         }
     }
 }
