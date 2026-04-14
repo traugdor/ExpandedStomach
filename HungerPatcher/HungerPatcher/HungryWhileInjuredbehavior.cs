@@ -1,18 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Vintagestory.API.Common.Entities;
 
 namespace HungryWhileInjured
 {
     public class EntityBehaviorHungryWhileInjured : EntityBehavior
     {
-
-        public EntityBehaviorHungryWhileInjured(Entity entity) : base(entity) 
+        public EntityBehaviorHungryWhileInjured(Entity entity) : base(entity)
         {
-            // :) using this to attach future things to the mod if needed. idk maybe I don't need it, but it's here anyway.
+            // Placeholder — reserved for future per-entity state if needed.
         }
 
         public override string PropertyName()

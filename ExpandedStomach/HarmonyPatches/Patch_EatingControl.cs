@@ -90,7 +90,7 @@ namespace ExpandedStomach.HarmonyPatches
                     harmony.Patch(onHeldUseStop,
                         prefix:  new HarmonyMethod(AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Prefix))),
                         postfix: new HarmonyMethod(AccessTools.Method(typeof(CANweEatIThania), nameof(CANweEatIThania.Postfix))));
-                    ExpandedStomachModSystem.Logger.Notification("ExpandedStomach: IthaniaCannedGoods compatibility patch applied successfully.");
+                    ExpandedStomachModSystem.Logger.Notification("ExpandedStomach: IthaniaCannedGoods compatibility patch applied.");
                 }
             }
         }
@@ -102,8 +102,10 @@ namespace ExpandedStomach.HarmonyPatches
     // vanilla body runs unconditionally and then calls ItemCannedFood.OnHeldInteractStop (and
     // therefore EatFromCan) via virtual dispatch.
     //
-    // We guard on the slot being an ICG can-opened-* item so the overhead on non-ICG interactions
-    // is a single null/string check and an early return.
+    // We guard on the slot being an ICG can-opened-* Item so the overhead on non-ICG interactions
+    // is a single null/string check and an early return. BlockOpenedCan (block held as ItemBlock)
+    // is explicitly skipped — its EatFromCan fires in OnHeldInteractStop, so it cannot be pre or
+    // postfixed accurately.
     //
     // Serving-count comparison strategy:
     //   servings unchanged after call  →  EatFromCan returned early (base full); eat 1 serving into expanded stomach
@@ -257,6 +259,7 @@ namespace ExpandedStomach.HarmonyPatches
             }
         }
     }
+
     #endregion
 
     #region BlockMeal_TryFinishEatMeal
@@ -734,18 +737,25 @@ namespace ExpandedStomach.HarmonyPatches
         }
 
         /// <summary>
-        /// After <c>updateBodyTemperature</c> returns, restores <c>clothingBonus</c> to whichever is
-        /// smaller: the snapshot taken in the prefix or the current value. This protects against
-        /// <c>updateWearableConditions</c> running between prefix and postfix and reducing the bonus
-        /// (e.g. the player removed a clothing item mid-tick).
+        /// After <c>updateBodyTemperature</c> returns, removes the fat bonus from <c>clothingBonus</c>
+        /// by restoring the snapshotted value — but ONLY if <c>clothingBonus</c> still equals exactly
+        /// <c>snapshot + fatBonus</c>. If the value differs, <c>updateWearableConditions</c> fired
+        /// between prefix and postfix (clothing added or removed mid-tick) and the game's recalculated
+        /// value must be preserved. In that case the fat bonus is skipped for this one tick and
+        /// reapplied on the next — a gap that is not perceptible to the player.
         /// </summary>
         public static void Postfix(State __state)
         {
             try
             {
                 if (!__state.Valid) return;
-                float currentBonus = ClothingBonusRef(__state.Instance);
-                ClothingBonusRef(__state.Instance) = Math.Min(currentBonus, __state.SnapshotBonus);
+                float currentBonus  = ClothingBonusRef(__state.Instance);
+                float expectedBonus = __state.SnapshotBonus + __state.FatBonus;
+                // If clothingBonus no longer matches what we set in the prefix, the game
+                // recalculated it mid-tick (clothing equipped or unequipped). Leave it alone
+                // and let the next tick apply the fat bonus cleanly.
+                if (Math.Abs(currentBonus - expectedBonus) > 0.001f) return;
+                ClothingBonusRef(__state.Instance) = __state.SnapshotBonus;
             }
             catch (Exception ex) { ExpandedStomachModSystem.Logger.Error($"Patch_EBBT Postfix threw: {ex}"); }
         }
