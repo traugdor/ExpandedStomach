@@ -68,6 +68,12 @@ namespace ExpandedStomach
         public string fatLostToHungerMultiplierDescription => "Multiply how much fat is lost when fending off hunger. (default 100%)";
         [JsonProperty(Order = 28)]
         public float fatLostToHungerMultiplier { get; set; } = 1f;
+        [JsonProperty(Order = 29)]
+        public string slowToxDescription => "SlowTox compatibility settings. Only active when SlowTox is installed. Fat level scales both alcohol tolerance and how long intoxication lingers.";
+        [JsonProperty(Order = 30)]
+        public float slowToxFatToleranceScale { get; set; } = 0.5f;
+        [JsonProperty(Order = 31)]
+        public float slowToxFatDecayRateScale { get; set; } = 0.5f;
 
         public ConfigServer(ICoreAPI api, ConfigServer previousConfig = null)
         {
@@ -90,6 +96,8 @@ namespace ExpandedStomach
             overStuffedTimeDelay = previousConfig.overStuffedTimeDelay;
             overStuffedThreshold = previousConfig.overStuffedThreshold;
             fatLostToHungerMultiplier = previousConfig.fatLostToHungerMultiplier;
+            slowToxFatToleranceScale = previousConfig.slowToxFatToleranceScale;
+            slowToxFatDecayRateScale = previousConfig.slowToxFatDecayRateScale;
         }
     }
 }
