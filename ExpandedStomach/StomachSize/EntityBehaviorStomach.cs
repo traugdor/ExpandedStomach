@@ -1,4 +1,5 @@
 ﻿using System;
+using ExpandedStomach.HarmonyPatches;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.Common.Entities;
@@ -132,6 +133,7 @@ namespace ExpandedStomach
         {
             FatMeter = value;
             CalculateMovementSpeedPenalty();
+            SlowToxCompat.UpdateEntityForFat(entity, FatMeter);
         }
 
         public float MaxSatiety //just an accessor for base game
@@ -472,6 +474,7 @@ namespace ExpandedStomach
             }
 
             bool FatMeterChanged = FatMeter.isDifferent(oldFatMeter);
+            if (FatMeterChanged) SlowToxCompat.UpdateEntityForFat(entity, FatMeter);
 
             switch (entity.Api.World.Config.GetString("ExpandedStomach.difficulty"))
             {

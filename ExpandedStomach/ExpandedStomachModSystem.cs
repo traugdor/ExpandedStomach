@@ -102,6 +102,7 @@ public class ExpandedStomachModSystem : ModSystem
             if (stomachbehavior != null)
             {
                 stomachbehavior.CalculateMovementSpeedPenalty();
+                SlowToxCompat.UpdateEntityForFat(entity, stomachbehavior.FatMeter);
             }
         };
 
@@ -130,6 +131,11 @@ public class ExpandedStomachModSystem : ModSystem
             {
                 HarmonyPatchesVars.IthaniaCannedGoodsInstalled = true;
                 Mod.Logger.Notification("Ithania Canned Goods detected (server-side).");
+            }
+            if (api.ModLoader.IsModEnabled("slowtox"))
+            {
+                SlowToxCompat.Initialize();
+                Mod.Logger.Notification("SlowTox detected (server-side). Fat-based tolerance and decay rate compat enabled.");
             }
             ServerPatcher.ApplyServerPatches(sHarmony);
             Patch_HungerDamageTicks.ApplyCorePatches(sHarmony);
